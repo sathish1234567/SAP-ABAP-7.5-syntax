@@ -1,0 +1,49 @@
+REDUCE:
+
+Use: 
+--  used for counter opertaions.
+--  sum of certain values inside a field of internal table using some conditions.
+--  find the subtotal/ total of perticular column of the internal table.
+
+data v1 = REDUCE i( ) --> reduce the integer(i) type expression inside in the brackets, and store into the internal table.
+
+Ex: to find the sum of first 10 numbers using REDUCE operator.
+1+2+3+4+5+6+7+8+9+10 = 55
+
+old syntax.
+data i type i value 1.
+data sum type i.
+do 10 times.
+ sum = sum + i.
+ i = i + 1.
+enddo.
+
+write sum.
+sum = 55.
+
+new syntax:
+REDUCE:
+data(v1) = REDUCE i( INIT SUM = 0 for i = 1 then i + 1 until i = 10 next sum = sum + i ).
+write v1.
+1.  it is reduceing the data type i(integer values).
+2.  initializing the sum i.e sum = 0.
+3.  looping with i value up to i = 10 and increment the value by 1. --> for i = 1 then i + 1 until i = 10
+4.  every loop i value is summation to the sum varaible. sum = sum + i.
+5. and finally sum value stored into the another varaible i.e v1.
+
+output:
+55.
+
+Note : in above statement if i will not specifieng "THEN i + 1" again output is 55 ?, because bydefault increment value is '1'.
+suppose if you want increment value with '2' --> then we have mention it as " THEN i + 2.
+if you want decrement in for use the "THEN i - 2 ".
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+REDUCE Operator for string data type .
+
+
+
+
+
+
