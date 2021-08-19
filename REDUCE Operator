@@ -42,6 +42,12 @@ if you want decrement in for use the "THEN i - 2 ".
 
 REDUCE Operator for string data type .
 
+data( v1 ) - reduce string( init text = `Count up:` for i = 1 until i = 10 next text = text && | { i } |).
+-- reducing the string data type 
+-- initializing the text varaible with value
+-- for loop is used for increment the value, up to 10 -for i = 1 until i = 10
+-- next i value is concatenating with the text varaible- next text = text && | { i } |
+-- { i } means i is integer type, while caoncatenating we need to convert the 'i' to string .
 
 
 
