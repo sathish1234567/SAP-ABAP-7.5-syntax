@@ -52,6 +52,129 @@ loop at it_data into wa.
   append wa to it_Data2.
 endloop.
 
+it_Data2
+C1    C2    C3    C4
+10    11    12    13
+20    21    22    23
+30    31    32    33
+40    41    42    43
+50    51    52    53
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+How to use where condition in FOR statement.
+
+data( it_Data2 ) = value tt_Data( for wa in it_data where (c1 > 30) (wa) ). <-- in every loop take it into the "Wa" and check the c1 > 30 , 
+                                                                                if it satisfies send the "wa" data to internal table,
+                                                                                
+output:
+it_data2
+C1    C2    C3    C4
+40    41    42    43
+50    51    52    53
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+How to extract the few columns data send one internal table to another internal table?
+
+data( it_Data2 ) = value tt_Data( for wa in it_data where (c1 > 30) (wa-c1) ) <-- this code will not work because of tt_data structure is different.
+this is only used for send the data to entire structure. to the other internal table not the individually.
+
+so 
+1.        declare the internal table with one column.
+2.        send data using value#
+
+data it_data2 type table of i.
+it_data2 = value #( for wa in it_Data where ( c1 > 30 ) (wa-c1)). < -- we can send any internal table using "value#"
+
+output:
+it_data2
+40
+50
+
+extract the few columns using table type (tt_Data) statement.
+
+types: begin of ty_Data4,
+        c1 type i,
+        c2 type i,
+      end of ty_Data4.
+      
+types tt_Data4 type table of ty_data4 with empty key.
+data( it_Data4 ) = value tt_Data4( for wa in it_data from 2 to 5 (c1 = wa-c1 c2 = wa-c2 ) ).
+
+means : it is sending all the c1, c2 from it_Data to it_data4 where index 2 to 5.
+
+output
+c1        c2
+20        21
+30        31
+40        41
+50        51
+
+old syntax:
+loop at it_Data into wa_data from 2 to 5.
+   wa_-data4-c1 = wa_data-c1.
+   wa_-data4-c2 = wa_data-c2.
+   append wa_Data4 to it_data4.
+ endloop.
+
+
+add all the rows of it_Data in a single column to it_Data5.
+type : tt_i type table of i with empty key.
+data( it_data5) = value tt_i( for wa in it_Data (wa-c1) (wa-c2)).
+
+it_Data5
+10
+11
+20
+21
+30
+31
+40
+41
+50
+51
+
+why it is coming in single line.
+since it_Data5 has only one column so, it is trying to adjust and compress data and put in  inside the it_Data5 internal table.
+        
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+How to get the record index in for statement which is matched to where condition?
+
+data( it_data3 ) = value tt_Data( for wa in it_data index into lv_index where ( c1 = 30 ) ( lines of it_Data from lv_index ) ).
+means : in for loop where c1 = 30 which record matched those record index sending to the "lv_index" variable and 
+        from that index we need send all the data from "it_Data" to the "it_data3" internal table.
+
+old syntax:
+finding index.
+read table it_data into wa_Data with key c1 = 30.
+if sys-subrc eq 0.
+   lv_index = sy-tabix.
+endif.
+loop it_data into wa_Data from lv_index.
+append wa to it_Data3.
+endloop.
+
+output:
+it_Data3
+C1    C2    C3    C4
+30    31    32    33
+40    41    42    43
+50    51    52    53
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
