@@ -1,0 +1,77 @@
+ Filter- operator
+ -- it is an operator which can be used to filter out entries of the internal table based on certain conditions of columns and these filtered entries are put into the different table.
+ -- filter operator returns the internal table with filtered entries.
+ -- desingned for filtering of internal table.
+ -- filtered keyword work with sorted/hashed table only, for standard table we will see in below.
+ -- syntax:
+    data(itab) = filter #(<itab> where <fname> = <cond value>)
+ 
+ types : begin of ty_Data,
+          name type char20,
+          attend type char01,
+         end of ty_data.
+         
+  data it_data type table of ty_data with non-unique key attend.
+  
+  " inserting data to internal table
+  it_table = value #( ( name = 'SOORAJ' attend = 'P' )
+                      ( name = 'SOORAJ1' attend = 'A' )
+                      ( name = 'SOORAJ2' attend = 'P' ) ).
+                                         
+  " display the data in seperate window.
+  cl_Demo_output=>write(it_Data) 
+  
+  " filtering data from it_data and save it in filtered data.
+  data(it_present) = filter #( it_Data where attend = 'P' ).
+  
+  " display the filtered data.
+  cl_Demo_output==>display( it_present ).
+  
+  it_present
+  name        attend
+  sooraj      p
+  sooraj1     p
+  
+  Except keyword in filter.
+  __________________________
+  
+  data( it_absent ) = filter #( it_Data except where attend = 'P' )
+  or 
+  data( it_absent ) = filter #( it_Data where attend = 'A' )
+  
+  cl_demo_output=>display( it_absent ).
+  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  
+  
+  how to implement the filter keyword in standard table. <-- USING KEY
+  ______________________________________________________
+  
+  data it_Data type table ty_Data with non-unique sorted key att components attend. <-- basically we are refering the "ATT" key for attend field name.
+  " here it_Data declaration is equals to the sorted table if you are using with the "sorted key 
+  data(it_present) = filter #( it_Data using key att where attend = 'P').
+  cl_demo_output=>display( it_present ).
+  
+  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  
+  How to filter the table data from the another internal table.<-- like for all entries/select-options. using <-- FILTER IN
+  
+  types : begin of ty_Data,
+            name type char20,
+            attend type char01,
+          end of ty_Data.
+  
+  data it _Data type sorted table of ty_Data with non-unique key attend.
+  data it_filter type sorted table of char01 with non-unique key table_line.
+  
+    " inserting data to internal table
+  it_table = value #( ( name = 'SOORAJ' attend = 'P' )
+                      ( name = 'SOORAJ1' attend = 'A' )
+                      ( name = 'SOORAJ2' attend = 'P' ) ).
+                      
+  it_filter = value #( (A) ).
+  cl_demo_output=>write( it_data ).
+  
+  data( it_filtered ) = filter #( it_Data in it_filter where attend = table_line ).
+  cl_Demo_output=>display( it_Filtered ).
+  
+ 
