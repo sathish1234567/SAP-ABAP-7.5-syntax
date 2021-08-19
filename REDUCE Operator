@@ -42,12 +42,94 @@ if you want decrement in for use the "THEN i - 2 ".
 
 REDUCE Operator for string data type .
 
-data( v1 ) - reduce string( init text = `Count up:` for i = 1 until i = 10 next text = text && | { i } |).
+Increment and concatenate:
+____________________________
+data( v1 ) = reduce string( init text = `Count up:` for i = 1 until i = 10 next text = text && | { i } |).
+write v1.
+
+output:
+Count up: 1 2 3 4 5 6 7 8 9 10.
+
 -- reducing the string data type 
 -- initializing the text varaible with value
 -- for loop is used for increment the value, up to 10 -for i = 1 until i = 10
 -- next i value is concatenating with the text varaible- next text = text && | { i } |
 -- { i } means i is integer type, while caoncatenating we need to convert the 'i' to string .
+-- here implicit incremetn happening here "then i + 1."
+
+decrement and concatenate:
+__________________________
+
+data( v1 ) = reduce string( init text = `Count down` for i = 1 then i - 1 until i < 10 next text = text && | { i } | ).
+
+output:
+Count down: 10 9 8 7 6 5 4 3 2 1.
+
+data( v1 ) = reduce string( init text = `Count down` for i = 1 then i - 2 until i < 10 next text = text && | { i } | ).
+
+output:
+Count down: 10 8 6 4 2.  <- even numbers.
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+REDUCE - INTERNAL TABLE:
+
+types : begin of ty_student,
+          name type char20,
+          subject type char20,
+          marks type i,
+        end of ty_Student.
+        
+data it_Student type table of ty_student.
+
+it_student = value #( for i = 1 until i < 5 ( name = 'Student' && i subject = 'Physics' marks = i ) ).
+cl_demo_output=>display( it_student ).
+
+output:
+name          subject           marks
+Student 1     Physics           1
+Student 2     Physics           2
+Student 3     Physics           3
+Student 4     Physics           4
+
+
+Note : REDUCE operator might be used with integer data type ..
+new sysntax:
+data( v1 ) = REDUCE i( INIT total=0 for wa in it_Student next total=total + i ).
+cl_demo_output=>display( v1 ).
+
+
+old syntax:
+loop at it_Student into wa.
+ total = total + wa-marks.
+endloop.
+v1 = total.
+write v1.
+
+output.
+v1
+55
+
+Appending new entry to the internal table it_Student.
+append value #( name = 'Staudent 4' subject = 'Maths' marks = 5 ) to it_Student.
+cl_Demo_output=>display( it_Student ).
+
+output:
+name          subject           marks
+Student 1     Physics           1
+Student 2     Physics           2
+Student 3     Physics           3
+Student 4     Physics           4
+student 4     maths             5
+
+Now i want to summing marks which is equals to student 4.
+
+data( v1 ) = REDUCE i( INIT total=0 for wa in it_Student where ( name = 'Student 4' ) next total=total + i ).
+cl_demo_output=>display( v1 ).
+
+Output
+v1
+9
+
 
 
 
