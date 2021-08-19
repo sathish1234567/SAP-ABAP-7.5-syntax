@@ -1,0 +1,170 @@
+VALUE - OPERATOR
+
+use: when we use the internal table inserting data.
+
+
+types: begin of ty_1,
+        name type string,
+        role type string,
+       end of ty_1.  
+       
+" declaring works area and assigning value.
+new syntax:
+data( <wa_name> ) = value <type_Structure>( <fname1> = <value1> <fanme2> = <value2> ).
+data( wa ) = value ty_1( name = 'sooraj' role='ABAP' ).     <-- creating work area with value based on ty_! strucuture.
+
+old syntax:
+data wa type ty_1.
+wa-name = 'sooraj'.
+wa-role = 'ABAP'.
+
+cl_Demo_output=>display( wa ).
+
+Note : cl_Demo_output don't use it in realtime .. this is only for demo purpose only.
+
+output: 
+name      role
+sooraj    abap
+
+ OR
+ 
+ using #:
+ 
+ use : already data object(wa) has declared with ty_1, in these case need to send data to existed work area (wa). we are using the # operator instead of type variable.
+ in runtime # will check the work area type and # will replace with type with ty_1.
+ data wa type ty_1.
+ wa = value #( name = 'sooraj' role='ABAP' ).
+    or 
+ wa = value ty_1( name = 'sooraj' role='ABAP' ).    -> this is also will work not a issue.
+ 
+
+output: 
+name      role
+sooraj    abap
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<work area>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+How to use the data object as type ?
+
+old syntax.
+
+data wa type ty_1.
+data wa_1 like wa.
+
+New syntax.
+data(<new wa_name>) = value #( BASE <existed wa> <filedname1> = <value1> <filedname2> = <value2> ).
+
+ data wa type ty_1.
+ wa = value #( name = 'sooraj' role='ABAP' ).
+ data(wa1) = value #(BASE wa name = 'sooraj' role='ABAP' ).
+ cl_Demo_output=>display( wa1 ).
+ 
+output: 
+name      role
+sooraj    abap
+
+ data wa type ty_1.
+ wa = value #( name = 'sooraj' role='ABAP' ).
+ data(wa1) = value #(BASE wa name = 'sachin' ).
+ cl_Demo_output=>display( wa1 ).
+ note : here i have taken "wa" and base contains "sooraj" and "abap" but name i am going to replace "sooraj" with "sachin"  and put it in "Wa2".
+ 
+output: 
+name      role
+sachin    abap
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<work area >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+value operator with internal table.
+
+types: begin of ty_1,
+        name type string,
+        role type string,
+       end of ty_1.  
+       
+types : tt_st1 type table of ty_1.
+
+data( itab1 ) = value tt_St1( name='sooraj' role='abap' ).
+
+here you will get the error:  tt_st1 can't be constructed, because tt_st1 is expecting the key.
+types : tt_st1 type table of ty_1 with empty key.
+
+agaiin you will get the error it is the internal table so, need to send data in ( ) only, ( .. ) it is one record.
+
+data( itab1 ) = value tt_St1( ( name='sooraj' role='abap' ) 
+                               ( name='sooraj1' role='abap' ) ).
+
+save and activate.
+
+output:
+name        role
+sooraj      abap
+sooraj1     abap
+
+insert the records with #
+
+
+types: begin of ty_1,
+        name type string,
+        role type string,
+       end of ty_1.  
+       
+data : itab1 type table of ty_1.
+
+ itab1  = value #( ( name='sooraj' role='abap' ) 
+                   ( name='sooraj1' role='abap' ) ).
+ cl_Demo_output=>display( itab1 ).
+                   
+output:
+name        role
+sooraj      abap
+sooraj1     abap
+
+
+
+
+appending value to the internal table:
+
+append value #( ( name='sooraj2' role='abap' ) to itab1.
+
+output:
+name        role
+sooraj      abap
+sooraj1     abap
+sooraj2     abap
+
+
+appending lines of / copying internal table data to another internal table.
+data( itab2 )  = value #( BASE itab1 ).
+output:
+name        role
+sooraj      abap
+sooraj1     abap
+sooraj2     abap
+
+
+
+append lines of to another table with existing values and along with new value.
+data( itab2 )  = value #( BASE itab1 ( name='sooraj3' role='abap' ) 
+                                     ( name='sooraj4' role='abap' ) ).
+
+utput:
+output:
+name        role
+sooraj      abap
+sooraj1     abap
+sooraj2     abap
+sooraj3     abap
+sooraj4     abap
+
+
+
+
+
+
+ 
+
+
+
+ 
+
