@@ -158,6 +158,42 @@ sooraj3     abap
 sooraj4     abap
 
 
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<internal table>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+READ with internal table
+
+new syntax.
+data(wa_read) = itab[ name = 'sooraj' ]. <-- read the entry "soorja" and save it in work area.
+Note:
+
+case-1
+if record not exist in the internal table it will give the dump and raise the exception as CX_SY_ITAB_LINE_NOT_FOUND,
+you can handle the dump using try and catch which was thrown.
+
+case-2:
+using value# and optional --> now it will not give the dump.
+data(wa_read) = value #(itab[ name = 'sooraj'] optional) < -- if not finding the "sachin" entry in this list --> it will not give the dump and return the baln work area.
+
+case-3
+DEFAULT value.
+if line is not found, default value send to the work area it will not give the dump.
+
+data wa_Def type ty_1.
+wa_Def = value #( name='sooraj3' role='abap' ) .
+data(wa_read) = valule #( itab1 [name = sachin ] default wa_def ).
+
+note if "sachin" record not exist in the intenral table --> not get the dump and get the default data and store it into the wa_read.
+
+old syntax
+read table itab1 into wa_Read with key name = 'sooraj'.
+
+cl_demo_output=>display( wa_read ).
+
+output: 
+name            role
+sooraj          abap
+
+
 
 
 
