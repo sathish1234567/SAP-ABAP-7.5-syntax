@@ -124,7 +124,7 @@ update the records to the internal table where condition has satisfied...
  sathish1   abap
  
 it_Data[ name = 'sathish' ]-name = 'sathish2'      <-- modify the particulr column.
-
+" it is reading the perticular column and modifieing it....
 output
 sathish2   abap
 sathish1   abap
