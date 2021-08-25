@@ -1,0 +1,138 @@
+How to read the data from internal table and also how to modify the particular record in the internal table?
+
+
+types: begin of ty_Data,
+        name type char20,
+        role type char10,
+       end of ty_Data.
+       
+data it_data type table of ty_Data.
+
+it_Data = vaue #( ( name = 'sathish' role = 'abap ) 
+                    ( name = 'sathish1' role = 'abap )
+                    ).
+                    
+cl_Demo_output=>(it_data).
+
+it_Data
+_______
+name      role
+sathish   abap
+sathish1  abap
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+find out perticular record in a internal table like read statement
+
+read the perticular record in internal table
+
+data(wa) = it_Data[ name = 'sathish' ].
+cl_demo_output=>display( wa ).
+ 
+output:
+__________
+wa
+name      role
+sathish   abap
+
+in output display ed two colums , but i need only one column i.e role
+
+
+data(wa) = it_Data[ name = 'sathish' ]-role.
+cl_demo_output=>display( wa ).
+ 
+output:
+__________
+wa
+role
+abap
+
+data(wa) = it_Data[ name = 'sathish' ]-name.
+cl_demo_output=>display( wa ).
+ 
+output:
+__________
+wa
+name
+sathish
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+suppose i am reading the data which is not existing the table wht happend here?
+Ans: you will get the dump..
+
+data(wa) = it_Data[ name = 'sathish5' ]-role.   <-- sathish5 not existing the in it_data so it will give the dump.
+
+to avoid the dump, take the code in try.. catch block..
+
+try.
+  data(wa) = it_Data[ name = 'sathish5' ]-role.
+catch cx_sy_itab_line_not_found .
+  write 'not found'.
+endtry.
+
+output: 
+Not found .. <-- you will not get any dump... if you write in try and ctch block....
+
+i don't want to use the try.. catch .. block for if record not exists. --> so you have to use the "line_Exists' keyword.
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+line_exists. <-- keyword
+  |_ read the internal table and checking the sy-subrc.
+not existed.
+if line_exists( it_Data[ name = 'sathish5' ] ). <-- if record exists, we need to read the record inside the code...
+     data(wa) = it_Data[ name = 'sathish5' ]-role.
+     write wa.
+else.
+     write 'Not found'.
+endif.
+
+output:
+not found.
+
+existed case:
+if line_exists( it_Data[ name = 'sathish' ] ). <-- if record exists, we need to read the record inside the code...
+     data(wa) = it_Data[ name = 'sathish' ]-role.
+     write wa.
+else.
+     write 'Not found'.
+endif.
+
+output:
+abap.
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+finding the index in read -- line_index 
+
+line_index( it_Data[ name = 'sathish' ] )  <-- returning the value.
+
+data(lv_index) = line_index( it_Data[ name = 'sathish' ] ).
+
+putput:
+1.          < this record exist in 1st index.
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+                              MODIFY 
+                              
+                              
+update the records to the internal table where condition has satisfied...
+
+ it_Data[ name = 'sathish' ] = 'sathish2'    <-- it is changing the complete row... and modified with role also.
+ output:
+ sathish2     
+ sathish1   abap
+ 
+it_Data[ name = 'sathish' ]-name = 'sathish2'      <-- modify the particulr column.
+
+output
+sathish2   abap
+sathish1   abap
+
+
+
+
+
+
+
+
