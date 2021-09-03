@@ -61,3 +61,8 @@ H
 I
 S
 H.
+
+
+Note:
+1. you can also use APPEND SEGMENT( ) to ITAB.
+2. APPEND to_lower/ to_upper SEGMENT() to ITAB.  -> to convert the case in the string when appending to internal table.
