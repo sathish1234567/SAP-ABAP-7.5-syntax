@@ -1,1 +1,63 @@
 
+Segment Function:
+--  deal with data, data should seperated by delimiter.
+-- to split the data.
+-- data is storing index wide. 
+
+'S, A, T, H, I, S, H'
+ 1  2  3  4  5  6  7
+-7 -6 -5 -4 -3 -2 -1
+
+Note : if you will give the out of the index you will get dump...
+
+data lv_Data type string vlue 'S, A, T, H, I, S, H'.
+
+data(lv_Resut) = segment( val = lv_Data, index = 1, sep = ',' ).
+
+write lv_Result.
+
+output
+__________
+S
+
+---> to capture lst data. either go with index = 7 or -1.
+data(lv_Resut) = segment( val = lv_Data, index = -1, sep = ',' ).
+
+write lv_Result.
+
+output
+__________
+H
+
+--> index out of scope --> get dump --> to avoid this use the try.. catch.
+
+try.
+data(lv_Resut) = segment( val = lv_Data, index = 9, sep = ',' ).
+catch cx_sy_string_pr_Val.
+write 'No index'.
+endtry.
+
+write lv_Result.=
+output
+__________
+No index.
+
+---> how to get all data using do loop.
+
+data lv_result type i.
+do.
+try.
+ lv_result = segment( val = lv_Data index = sy-index sep = ',' ).
+ write / lv_result.
+catch cx_sy_string_par_val.
+ exit.
+endtry.
+
+output:
+S
+A
+T
+H
+I
+S
+H.
