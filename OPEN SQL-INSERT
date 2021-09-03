@@ -1,1 +1,28 @@
+INSERT:
+
+used: to insert the records to a data base table from work area/ internal table.
+
+DB Table: EMPLOYEE
+EMPNO           EMPNAME.
+
+inserting first record to DB table.
+
+data wa_employee type employee.
+wa_employee = value #( EMPNO = '1' EMPNAME 'SATHISH' ).
+insert into zemployee values wa_employee.
+
+or
+
+@- host expression in insert statement.
+insert into zemployee values @(value #( EMPNO = '1' EMPNAME 'SATHISH' )). ****************
+
+or
+
+wa_employee = value #( EMPNO = '1' EMPNAME 'SATHISH' ).
+insert zemployee  from wa_employee.
+
+inserted 1 record to the DB table.
+
+1   SATHISH.
+
 
