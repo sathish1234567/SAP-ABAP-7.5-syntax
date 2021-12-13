@@ -1,0 +1,161 @@
+*&---------------------------------------------------------------------*
+*& Report YSAT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ysat.
+TYPES : BEGIN OF lty_body,
+          _name                    TYPE string,
+          _account_source          TYPE string,
+          _industry                TYPE string,
+          _rating                  TYPE string,
+          _phone                   TYPE string,
+          _website                 TYPE string,
+          _ownership               TYPE string,
+          _number_of_employees     TYPE string,
+          _account_number          TYPE string,
+          _p_a_n____c              TYPE string,
+          _g_s_t____c              TYPE string,
+          _account___category____c TYPE string,
+          _sub___category____c     TYPE string,
+          _customer___grade____c   TYPE string,
+          _application____c        TYPE string,
+          _facebook___url____c     TYPE string,
+          _instagram___url____c    TYPE string,
+          _linkedin___url____c     TYPE string,
+          _twitter___url____c      TYPE string,
+          _annual_revenue          TYPE string,
+          _security___cheques____c TYPE string,
+          _payment___terms____c    TYPE string,
+          _credit___limit____c     TYPE string,
+          _security___deposit____c TYPE string,
+          _inco___terms____c       TYPE string,
+          _billing___street____c   TYPE string,
+          _billing___city____c     TYPE string,
+          _billing___state____c    TYPE string,
+*          _billing__zip__postal__code___c  TYPE string,
+          _billing___country____c  TYPE string,
+          _shipping___street____c  TYPE string,
+          _shipping___city____c    TYPE string,
+          _shipping___state____c   TYPE string,
+*          _shipping__zip__postal__code___c TYPE string,
+          _shipping___country____c TYPE string,
+        END OF lty_body.
+TYPES : BEGIN OF lty_request,
+          method       TYPE string,
+          url          TYPE string,
+          reference_id TYPE string,
+          body         TYPE lty_body,
+        END OF lty_request.
+DATA : BEGIN OF request,
+         composite_request TYPE TABLE OF lty_request,
+       END OF request.
+DATA kunnr TYPE kunnr VALUE '1234567890'.
+DATA lt_request LIKE TABLE OF request.
+DATA composite_request TYPE lty_request.
+DATA lv_json TYPE string.
+DATA ls_body TYPE lty_body.
+composite_request-method = 'get'.
+composite_request-url = 'https://google.com'.
+composite_request-reference_id = 'New reqeuest'.
+*ls_body-_g_s_t____c = 't6est'.
+*ls_body-_website = 'test'.
+*ls_body-_number_of_employees = '1101'.
+ls_body-_name                           = '1'.
+ls_body-_account_source                 = '1'.
+ls_body-_industry                       = '1'.
+ls_body-_rating                         = '1'.
+ls_body-_phone                          = '1'.
+ls_body-_website                        = '1'.
+ls_body-_ownership                      = '1'.
+ls_body-_number_of_employees            = '1'.
+ls_body-_account_number                 = '1'.
+ls_body-_p_a_n____c                     = '1'.
+ls_body-_g_s_t____c                     = '1'.
+ls_body-_account___category____c = '1'.
+ls_body-_sub___category____c     = '1'.
+ls_body-_customer___grade____c   = '1'.
+ls_body-_application____c        = '1'.
+ls_body-_facebook___url____c     = '1'.
+ls_body-_instagram___url____c    = '1'.
+ls_body-_linkedin___url____c     = '1'.
+ls_body-_twitter___url____c      = '1'.
+ls_body-_annual_revenue          = '1'.
+ls_body-_security___cheques____c = '1'.
+ls_body-_payment___terms____c    = '1'.
+ls_body-_credit___limit____c     = '1'.
+ls_body-_security___deposit____c = '1'.
+ls_body-_inco___terms____c       = '1'.
+ls_body-_billing___street____c   = '1'.
+ls_body-_billing___city____c     = '1'.
+ls_body-_billing___state____c    = '1'.
+*ls_body _billing__zip__postal__c = ''.
+ls_body-_billing___country____c  = '1'.
+ls_body-_shipping___street____c  = '1'.
+ls_body-_shipping___city____c    = '1'.
+ls_body-_shipping___state____c   = '1'.
+*ls_body _shipping__zip__postal__c = ''.
+ls_body-_shipping___country____c = '1'.
+
+composite_request-body = ls_body.
+APPEND composite_request TO request-composite_request.
+lv_json = /ui2/cl_json=>serialize( data = request
+                                   compress = abap_true
+                                   pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+
+cl_demo_output=>display( lv_json ).
+
+
+*WRITE : kunnr.
+
+*WRITE : kunnr+5.
+
+
+output:
+{
+ "compositeRequest" : [
+ {
+ "method" : "PATCH",
+ "url" : "/services/data/v50.0/sobjects/Account/SF_Account_Number__c/AC|09-
+21|0003",
+ "referenceId" : "newAccount",
+ "body" : { 
+ "Name" : "Rubberazor Trust",
+ "AccountSource" : "Partner",
+ "Industry" : "Construction",
+ "Rating" : "Hot",
+ "Phone" : "3453523432",
+ "Website" : "www.testing.com",
+ "Ownership" : "Private",
+ "NumberOfEmployees" : "100",
+ "AccountNumber" : "23234",
+ "PAN__c" : "ABD34423DS",
+ "GST__c" : "GSTSDDSS234324",
+ "Account_Category__c" : "Partner",
+ "Sub_Category__c" : "PNCR",
+ "Customer_Grade__c" : "A",
+ "Application__c" : "Wires & Cables",
+ "Facebook_URL__c" : "facebook.com/asd",
+ "Instagram_URL__c" : "instagram.com/asd",
+ "LinkedIn_URL__c" : "linkedin.com/asd",
+ "Twitter_URL__c" : "twitter.com/asd",
+ "AnnualRevenue" : "12342",
+ "Security_Cheques__c" : "12 test",
+ "Payment_Terms__c" : "60 days",
+ "Credit_Limit__c" : "12000",
+ "Security_Deposit__c" : "10000",
+ "Inco_Terms__c" : "Term test",
+ "Billing_Street__c" : "Street test",
+ "Billing_City__c" : "Bangalore",
+ "Billing_State__c" : "Gujarat",
+ "Billing_Zip_Postal_Code__c" : "124323",
+ "Billing_Country__c" : "India",
+ "Shipping_Street__c" : "Street test",
+ "Shipping_City__c" : "Bangalore",
+ "Shipping_State__c" : "Gujarat",
+ "Shipping_Zip_Postal_Code__c" : "4543343",
+ "Shipping_Country__c" : "India"
+ }
+ }
+ ] 
+}
