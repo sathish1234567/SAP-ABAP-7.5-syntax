@@ -16,11 +16,20 @@ Enhanced ABAP Objects:
 Inline declearions:
 ___________________
 
+@- host varaible
+@data --> used in select/ data base statement.
+data(var) -- used another place except select statement.
+field-symbol(var)
+
+______
 constants : v_cons type i value 5.
 
-select * from sflight into table @data(t_sflight).
+select * from sflight into table @data(t_sflight). --> @data is creating the internal table which will have all the fields of sflight , selected from db.
 
-read table t_sflight into data(wa)sflight) index 1.
-read table t_sflight assigning field-symbol(<fs_flight>) index 1.
+read table t_sflight into data(wa_sflight) index 1. --> wa_sflight creates the structure of internal table.
+read table t_sflight assigning field-symbol(<fs_flight>) index 1. --> fields symbol creates the structure of internal table.
 
 data(v_new) = v_cons + 5.
+
+
+used inline declearions: lot of time will saved.
