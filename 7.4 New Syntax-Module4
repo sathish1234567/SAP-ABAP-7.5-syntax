@@ -1,0 +1,26 @@
+https://www.youtube.com/watch?v=gFfqoe_jX7o&list=PLQh9AF8VRrlvOBJZCV2T9-qmTDOZKCRxa&index=1 
+
+concepts:
+1. inline declerations
+2. New constructor expressions New(), CONV(), COND()
+3. Table comrehensions, Table line selections
+4. Powerful operations for internal tables using CORRESPONDING() operator, GroupBy and Filtering.
+5. 
+
+Enhanced ABAP Objects:
+1.  Additional output parameters for functional methods
+2.  Predicative call for functional methods
+3.  Optional and partially implemented interface method
+
+
+Inline declearions:
+___________________
+
+constants : v_cons type i value 5.
+
+select * from sflight into table @data(t_sflight).
+
+read table t_sflight into data(wa)sflight) index 1.
+read table t_sflight assigning field-symbol(<fs_flight>) index 1.
+
+data(v_new) = v_cons + 5.
