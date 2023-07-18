@@ -1,0 +1,24 @@
+-- comma seperate in evrey field in select statement
+-- @- host variable - to identifie the ABAP variables/except literals/constants in select query. this is the variable, ignore this in while compilation time. 
+-- classical sql syntax still valid in higher versions.
+-- New syntax mandatory- from 7.4 and SP05.
+
+Ex: classical syntax:
+ select ebeln ebelp werks netpr from ekpo
+        into table it_data.
+ loop at it_Data assigning <fs_ekpo>.
+   if <fs_ekpo>-netpr gt 100.
+      <fs_ekpo>-pur_type = 'High value'.
+   else.
+      <fs_ekpo>-pur_type = 'low value'.
+   endif.
+ endloop.
+
+ in new syntax:- using case stament in SQL, in HANA calculation will happend DB itself .
+ select ebeln, ebelp, werks, netpr
+        case when netpr > 100 then 'High value'
+             else 'low value'
+         end as pur_type
+         from ekpo
+          into table @it_Data.
+
