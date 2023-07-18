@@ -1,3 +1,5 @@
+ZAP yard-A to Z ABAP -  youtube.com/watch?v=wTPqpJZDak8
+
 -- comma seperate in evrey field in select statement
 -- @- host variable - to identifie the ABAP variables/except literals/constants in select query. this is the variable, ignore this in while compilation time. 
 -- classical sql syntax still valid in higher versions.
@@ -20,5 +22,10 @@ Ex: classical syntax:
              else 'low value'
          end as pur_type
          from ekpo
-          into table @it_Data.
+          into table @data(it_Data).
+
+
+-- New syntax: into clause should be last statement in select Query.
+-- FIELDS key word- introduced purposr : readability/ providing the field names using CTRL + SPACE
+-- 
 
