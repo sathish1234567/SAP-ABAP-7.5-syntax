@@ -1,6 +1,6 @@
 COUNT: Count the number of data is available in DB
 DISTINCT: avoid redunndancy in select.
-
+ALIAS: with alias only we can able to create the structure of the internal table@ runtime.
 Ex: 
 
 select mara~matnr, mard~lgort,
