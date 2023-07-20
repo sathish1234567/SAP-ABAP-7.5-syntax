@@ -13,4 +13,17 @@ open sql          Native sql
 |  Database for ABAP- HANA      |
 --------------------------------
 
+limitations:
+______________
+
+1. No- fixed values and computed columns
+2. No- case Expressions
+3. No- right outer joins
+4. No- unions
+5. No sub queries in select
+
+Features of NEW OPEN SQL:
+____________________________
+
+
 
