@@ -20,3 +20,24 @@ select mara~matnr, mard~lgort,
 
 Note: When using the aggregate,all the fields which are not part of aggregate functions have to be grouped by,
 
+2. using literals/using system varaibles are in liteals
+   select ebeln,
+          10 as num_lit,
+          'sat' as string_lit,
+          @sy-langu as syst_lang,
+          @sy-uname as sys_uname,
+          from ekko
+           wher ebeln = '000000000000123456'
+              into table @data(lt_Data).
+
+3. USING: CEIL/FLOOR/ROUND:
+       data : lv_rebat type p decimals 2 value '0.10'. 
+       select ebeln
+              ( ceil( netpr ) * @lv_Rebate ) as ceil_col,
+              floor( netpr ) as floor_col,
+              ( @lv_rebate * ntepr ) as rebate,
+              ( netpr - ( @lv_Rebate * netpr ) ) as act_net
+              from ekpo
+              where ebeln = '4500000046'
+              into table @data(it_data).
+
