@@ -25,6 +25,9 @@ Ex: classical syntax:
           into table @data(it_Data).
 
 
+
+
+
 -- New syntax: into clause should be last statement in select Query.
 -- FIELDS key word- introduced purposr : readability/ providing the field names using CTRL + SPACE
 -- 
