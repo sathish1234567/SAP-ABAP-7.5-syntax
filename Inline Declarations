@@ -4,3 +4,5 @@ in select statement for internal table.
                       into table @data(<table_name>)
                       <<where cond>>.
     whatever you are using the field names based on the fields --> it will create the internal table with selected field names.
+
+ 2. data(<itab1>) = itab2.  <-- based on itab2 it is creating the new internal table- itab1.
