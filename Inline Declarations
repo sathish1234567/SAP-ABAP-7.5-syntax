@@ -3,3 +3,4 @@ in select statement for internal table.
  1. select <F1>, <f2> from <table>
                       into table @data(<table_name>)
                       <<where cond>>.
+    whatever you are using the field names based on the fields --> it will create the internal table with selected field names.
