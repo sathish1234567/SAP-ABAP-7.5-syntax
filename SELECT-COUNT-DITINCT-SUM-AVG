@@ -1,0 +1,22 @@
+COUNT: Count the number of data is available in DB
+DISTINCT: avoid redunndancy in select.
+
+Ex: 
+
+select mara~matnr, mard~lgort,
+       COUNT(DISTINCT (MARD~MATNR) ) as distinct_matnr,
+       COUNT(DISTINCT (MARD~WERKS) ) as distinct_werks,
+       SUM(MARD~LABST) as sum_unrest,
+       AVG(MARD~INSME) as avg_qlt_insp
+       from mara as mara
+            mard as mard
+      on mara~matnr = mard~matnr
+
+      into table @data(it_data)
+      where mara~matnr = '000000000000000012' and 
+            mard-lgort = @p_lgort
+      group by mara~matnr
+               mard~lgort.
+
+Note: When using the aggregate,all the fields which are not part of aggregate functions have to be grouped by,
+
