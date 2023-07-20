@@ -3,7 +3,7 @@ ZAP yard-A to Z ABAP -  youtube.com/watch?v=wTPqpJZDak8
 -- comma seperate in evrey field in select statement
 -- @- host variable - to identifie the ABAP variables/except literals/constants in select query. this is the variable, ignore this in while compilation time. 
 -- classical sql syntax still valid in higher versions.
--- New syntax mandatory- from 7.4 and SP05.
+-- New syntax mandatory- from 7.4 and SP05.-- here we have to change the query with new syntax.
 
 Ex: classical syntax:
  select ebeln ebelp werks netpr from ekpo
