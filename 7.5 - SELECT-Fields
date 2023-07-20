@@ -1,0 +1,19 @@
+New syntax - 7.5
+1. added the FIELDS keyword in the select statement.
+2. always use the -INTO Clause at last of the select statement,
+
+Ex: select from ekpo
+          fields ebeln, ebelp, werks, netpr
+          CASE when netpr > 100
+                  then 'High Value'
+               else 'Low Value'
+          end as pur_type
+          into table @data(it_data).
+   use of FIELDS: 1. increase the readability of the code 
+                  2. to get the all the field names/fuzy search(CTRL + SPACE ) will work in select statement --> previous version no fuzzy search on select.
+   INTO clause - given in last only accepting , because SAP has given in 7.5 introduced UNION/UNION ALL and 
+                 these keywords are not possible to use the with in the select and also use it after the INTO claus only.
+                even where consition also not accept after the into clause, where condition use before the INTO caluse only.
+
+  
+
