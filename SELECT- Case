@@ -23,7 +23,7 @@ Ex: classical syntax:
          end as pur_type
          from ekpo
           into table @data(it_Data).
-
+ Note above case statement executes in DB itself and display the output.
 
 
 
