@@ -24,6 +24,18 @@ ______________
 
 Features of NEW OPEN SQL:
 ____________________________
+1. SQL CASE
+2. COALESCE
+3. Arthemetic Expressions: + , - , * , /
+4. type conversion with CAST
+5. Arthemetic functions- DIV, MOD, ABS, ROUND, FLOOR, CEIL
+6. Aggregate Functions - SUM/COUNT/AVG
+7. String  Concatenation WITH -&&
+8. RIGHT OUTER JOIN
+9. maxumum number of join increased uptp 50 tables.
+10. maximum number of sub queries has been increased- 
+11. UNIION and UNIONALL - used to appending the table, when you 2 select queries had to append the data from the second query into the same internal table,
+    which was populated from the 1st query that was replaced with UNION and UNION ALL.
 
 
 
