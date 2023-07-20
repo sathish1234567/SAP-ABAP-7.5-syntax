@@ -1,0 +1,5 @@
+in select statement for internal table.
+@Data(it_tab)
+ 1. select <F1>, <f2> from <table>
+                      into table @data(<table_name>)
+                      <<where cond>>.
