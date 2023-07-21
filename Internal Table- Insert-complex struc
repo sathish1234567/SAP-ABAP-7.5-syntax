@@ -1,4 +1,5 @@
-Internal table - Insert the data with new syntax.
+Internal table - Insert the data with new syntax
+Inserting data through either << type >> / << # >> we need to use in while passing the data to intenral table/ strucutures/ . 
 
 new syn:
    -- simple structure 
