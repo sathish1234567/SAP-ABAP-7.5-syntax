@@ -44,6 +44,15 @@ data(ls_ex13) = value gty_ex1( ( col1 = 1   " scalar var
                                ( col1 = 2   " scalar var
                                col2 = ls_Ex1
                               col3 = li_table ) ).
+" # means - already range table has declared, so we need to use the same strucuture.
+lr_Range = value #( sign = 'I' option = 'BT' ( low = 1 high = 10 )
+                                             ( low = 2 high = 20 )
+                                             ( low = 3 high = 30 )
+                              option = 'GE' ( low = 61 ) ).
+" here range has 4-columns.
+I BT  1  10
+I BT  2  20
+I BT  3  30
+I GE  61  
 
-
-
+ 
