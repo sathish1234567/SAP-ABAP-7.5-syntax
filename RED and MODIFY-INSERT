@@ -7,7 +7,7 @@ types: begin of ty_Data,
        end of ty_Data.
        
 data it_data type table of ty_Data.
-
+" insert data to internal table
 it_Data = vaue #( ( name = 'sathish' role = 'abap ) 
                     ( name = 'sathish1' role = 'abap )
                     ).
