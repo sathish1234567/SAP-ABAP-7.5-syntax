@@ -35,7 +35,15 @@ data(ls_ex1) = value gty_Ex1( col1 = 1    " scalar vara
                               col3 = li_table ).
 
 data(ls_ex12) = value gty_ex1( col1 = 1   " scalar var
+                               col2 = ls_Ex1 " struc
+                              col3 = li_table )."internal table
+
+data(ls_ex13) = value gty_ex1( ( col1 = 1   " scalar var
                                col2 = ls_Ex1
-                              col3 = li_table ).
+                              col3 = li_table )
+                               ( col1 = 2   " scalar var
+                               col2 = ls_Ex1
+                              col3 = li_table ) ).
+
 
 
