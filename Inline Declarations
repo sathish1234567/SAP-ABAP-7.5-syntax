@@ -6,3 +6,20 @@ in select statement for internal table.
     whatever you are using the field names based on the fields --> it will create the internal table with selected field names.
 
  2. data(<itab1>) = itab2.  <-- based on itab2 it is creating the new internal table- itab1.
+
+ 3. in methods / FMS - declaring the internal tables/structures.
+    ZCL_FUZZY_SEARCH=>meth_linguistic( 
+         exporting 
+           im_text = 'GO'
+           im_mandt = sy-mandt
+         importing
+            ex_Data = data(it_data). <-- it_data properties are acquring from ex_data.
+
+ 4. to create the object for class.
+    old syn:
+        data : lr_sql_con type ref to cl_sql_connection.
+        create object lr_sql_con.
+
+   new syn: - NEW keyword.
+       data(lr_sql_con) = NEW cl_sql_connection( ).
+
