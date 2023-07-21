@@ -1,0 +1,22 @@
+CAST - used to convert the value to perticular type.
+UNION: number of elements in the field list must match - both left and right should be equal.
+
+DATA lv_customer) type kunnr value '0000012345'.
+
+select from sbook
+       fields carrid, connid, fldate, bookid, customid,
+       CAST( loccuram as FLTP ) / CAST( 2 AS FLTP ) as div_field,
+       loccurkey
+       where customid = @lv_customer and smoker = 'X'
+
+unionall
+
+select from sbook
+       fields carrid, connid, fldate, bookid, customid,
+       CAST( loccuram as FLTP ) / CAST( 2 AS FLTP ) as div_field,
+       loccurkey
+       where customid = @lv_customer and smoker = ' '
+
+into table @data(it_data)
+      
+       
