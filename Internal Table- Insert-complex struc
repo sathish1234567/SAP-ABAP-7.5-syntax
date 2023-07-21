@@ -1,0 +1,41 @@
+Internal table - Insert the data with new syntax.
+
+new syn:
+   -- simple structure 
+ types: begin of gty_ex,
+          col1 type i,
+          col2 type c,
+          col3 type datum,
+          end of gty_Ex,
+
+          gtt_Ex type table of gty_ex with default key.
+
+    -- complex structure.
+ types : begin of gty_ex1,
+          col1 type i,
+          col2 type gty_ex,
+          col3 type gtt_ex,
+         end of gty_Ex1,
+         gtt_Ex1 type table of gty_Ex1 with default key.
+
+data lr_Range type range of i.
+
+" work area assigning the values.
+data(ls_Ex) = value gty_Ex( col1 = 1, col2 = 'A', col3 = sy-datum ).
+
+" instering the data to the internal table.
+data(li_Table) = value gtt_ex( ( col1 = 1, col2 = 'A', col3 = sy-datum  ),
+                               ( col1 = 2, col2 = 'B', col3 = sy-datum  ),
+                               ( col1 = 3, col2 = 'C', col3 = sy-datum  )
+                             ).
+
+" passing data to the complex structure.
+data(ls_ex1) = value gty_Ex1( col1 = 1    " scalar vara
+                              col2-col1 = 1 col2-col2 = 'A' col2-col3 = sy-datum 
+                              col3 = li_table ).
+
+data(ls_ex12) = value gty_ex1( col1 = 1   " scalar var
+                               col2 = ls_Ex1
+                              col3 = li_table ).
+
+
