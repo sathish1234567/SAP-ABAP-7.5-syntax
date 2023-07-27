@@ -1,0 +1,21 @@
+class lcl_ex definition.
+ public section.
+    class-methods : meth_Ex importing  im_para type string.
+endclass.
+
+class lcl_ex implementation.
+ method meth_Ex.
+
+ endmethod.
+endclass.
+
+start-of-selection.
+data lv_value type i value 1234.
+lcl_Ex=>meth_ex( exporting im_para = CONV #( lv_value ) ). 
+
+lv_Value --> actual
+im_para --> formal.
+
+when you use the CONV #- it is convert the value to the input parameter type i.e converting the i to the string type .
+here i is the compatible store the data to the string .. reverse it is not possible...
+which is compatible to store the data.. those data we need to pass actual to formal.
