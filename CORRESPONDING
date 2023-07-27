@@ -146,7 +146,7 @@ types: begin of ty_data1,
                   ( c1 = 10 c2 = 20 c3 = 30 c4 = 40 )
                 ).
   
- data( itab2 ) = corresponding #( itab1 maping mapping c5 = c1 c6 = c2 c7 = c3 except c3 c4). < here not passing the data and but 0 data available
+ data( itab2 ) = corresponding #( itab1 mapping c5 = c1 c6 = c2 c7 = c3 except c3 c4). < here not passing the data and but 0 data available
  
  
   cl_Demo_output=>display( itab2 ).
