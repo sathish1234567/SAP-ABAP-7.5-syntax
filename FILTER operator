@@ -34,10 +34,10 @@ new syntax:
 
 li_itab3 = filter #( li_itab1 in li_itab2 where table_line  = table_line ).
 
-li_itab3 = filter #( li_itab1 not in li_itab2 where table_line  = table_line ).
+li_itab3 = filter #( li_itab1 EXCEPT in li_itab2 where table_line  = table_line ).
 
 here i am filtering data from li_itab1 in li_itab2 which is match with where clause  and result stored in li_itab3.
-
+EXCEPT: keyword equals to "NOT " the EXCEPT IN = NOT IN
 __________________________________________________
 Ex: 
  
