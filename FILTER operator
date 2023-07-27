@@ -5,6 +5,39 @@
  -- filtered keyword work with sorted/hashed table only, for standard table we will see in below.
  -- syntax:
     data(itab) = filter #(<itab> where <fname> = <cond value>)
+
+data : li_itab1  type sorted table of i with non-unique key table_line,
+       li_itab2  type sorted table of i with non-unique key table_line,
+       li_itab3  type standard table of i.
+
+start-of-selection.
+       do 10 times.
+          append sy-index to li_itab1.
+          if sy-index mod 2 = 0.
+             append sy-index to li_itab2.
+          endif.
+       enddo.
+
+" old syntax: -- transfer data to one table to another table.
+field-symbols : <lfs_worka> type i,
+                <lfs_workb> type i.
+
+loop at li_itab1 assigning <lfs_worka>.
+  read table li_itab2 assigning <lfs_workb> 
+                      with key table_line = <lfs_worka>.
+  if sy-subrc eq 0.
+     append <lfs_workb> to li_itab3.
+   endif.
+endloop.
+
+new syntax:
+
+li_itab3 = filter #( li_itab1 in li_itab2 where table_line  = table_line ).
+
+
+
+__________________________________________________
+Ex: 
  
  types : begin of ty_Data,
           name type char20,
