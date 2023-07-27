@@ -17,14 +17,21 @@ cl_Demo_output=>(it_data).
 it_Data
 _______
 name      role
-sathish   abap
-sathish1  abap
+sathish   abap - 1
+sathish1  abap - 2
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 find out perticular record in a internal table like read statement
 
 read the perticular record in internal table
+try.
+data(wa) = it_Data[ name = 'sathish' ].  " eauals to data(wa) = it_Data[ 1 ]. 
 
-data(wa) = it_Data[ name = 'sathish' ].
+or reading by index.
+data(wa) = it_Data[ 1 ].
+catch cx_sy_itab_line_not_found.
+
+endtry.
+
 cl_demo_output=>display( wa ).
  
 output:
@@ -33,8 +40,9 @@ wa
 name      role
 sathish   abap
 
+NoteL when you are reading amy internal table we need to apply try .. catch block 
 in output display ed two colums , but i need only one column i.e role
-
+bcz when table is empty it will give the dump.
 
 data(wa) = it_Data[ name = 'sathish' ]-role.
 cl_demo_output=>display( wa ).
