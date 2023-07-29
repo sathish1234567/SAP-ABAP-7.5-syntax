@@ -1,3 +1,43 @@
+
+* @- use in select
+* @-HOSTING variable
+* @ DB operations executes in DB level, it is DB not the DB related VAR
+* @ and it is related to the application server variable and 
+* @ that is the reason we are hosting this variable in DB level
+* @ in DB operation level, when we are using variables- we have to use the @ is mandatory
+
+* internal table : select .. into table @data(it_itab) 
+* object creation: data(oref) = NEW <<class name/data type>>( ).
+* shift + enter --> signture add it in code
+
+* automatically creates the types and object
+* in normal abap we have to write the decleration of types and then create the object for the types
+* 7.4/7.5 --> once write the select statement -->put the cursor on @data(it_itab), 
+* do the CTRL + 1 --> get the right click properties and select the convert the it_vbak to attribute then automatical creates.
+* automatically creates the type structure and internal table
+
+* declare the local var: data(lv_lines) = lines( <internal table ).
+* lines -- it is counting the number of records in internal table
+
+* inline declaration in loop and read statement 
+* using Field symbol:
+*     loop at it_vbak assigning <fs_vbak>.
+*     endloop.
+* in Read statement
+*     read table it_itab into data(ls_itb).
+*     read table it_itab assigning field-symbols(<lfs_vbak).
+
+* Declare the variable while clling the methods and FMs
+* cl_Salv_Table_factory=> ( importing 
+*                                r_Salv_Table = data(lo_salv)
+*                            chnging
+*                                t_Table = ita_itab ).
+
+  
+
+
+
+
 in select statement for internal table.
 @Data(it_tab)
  1. select <F1>, <f2> from <table>
