@@ -1,0 +1,45 @@
+Difference between field symbol and Reference Var.?
+Reference Variable:
+___________________
+Ex: data lv_ref_i type ref to i. 
+    --> it does, creates the memory in application layer and lv_REf_i is pointing to the perticular memory.
+
+i want to initialize the reference var, use below statement in old
+    --> create data lv_Ref_i. --> now lv_Ref_i -- initialize with the value of i means it is 0.
+    --> in memory stores the initial value.
+
+how to access the memory value in abap?
+    --> using the dereference operator ->*, after dereferencing whatever the value available at particular memory location 
+        which is deferencing with the perticular memory.  
+
+data lv_ref_i type ref to i.
+
+create data lv_REf_i.
+
+write : lv_REf_i->*.   --> 0.
+
+
+Field-Symbols:
+_____________
+
+ ---- Field-symbols always point to the value only but not the memoery address.
+ ---- it is pointings the memory loction of the value.
+ ---- not required de=reference, bcz it is pointing to the perticular memory location of the value.
+ ---- it is pointing to the any memory location, any variable and any data reference varibale.
+
+
+Ex: 
+data lv_ref_ type ref to i.
+
+create data lv_Ref_i.
+
+write: lv_Ref_i->* 
+
+assign lv_Ref_i->* to field-symbol(<fs>).
+
+write: <fs>.
+
+data lv_Var type i.
+
+assign lv_var to <fs>.
+
