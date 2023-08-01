@@ -36,3 +36,8 @@ write : lv_REf->*, <fs>. both field-symbol and reference varaible both has the s
 
 data object : any kind of varaible/structures/tables... etc.
 
+Ex:
+data lv_REf type ref to kna1.
+create data lv_Ref.
+*write lv_REf->*.
+assign lv_Ref->* to FIELD-SYMBOL(<fs>).
