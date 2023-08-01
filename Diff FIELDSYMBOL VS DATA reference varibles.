@@ -1,1 +1,38 @@
 
+reference varaibles :
+____________________
+1. create the reference varaibles -->dat lv_Ref type to i.
+   -- it reserves a space in the application server and 
+   -- this perticular variables point to the memory perticular memory address(reserve space) at application server.
+2. always point to the memory location
+3. initializing the data to reference varaible. --> create data lv_REf.
+    -- it is initializing the perticuler ref variables.
+    -- now the initial value of the "i" will be stored in the lv_Ref.
+
+Ex: data lv_Ref type ref to i.
+    create data lv_REf.
+    write lv_Ref->*. ( derefernecing point to the value of the memory)
+
+    output:
+    0
+
+Field-symbol:
+ःःःःःःःःःःःः
+--  always point to the value only and not the memory address.
+--- it is pointing to the value of the memory of the var.
+--  assigning value to the field symbol.
+    assign lv_Ref->* to field_symbols(<fs>). --> now this field symbol pointing to the vaue of the memory location.
+--  now directly i will use the field symbol .. onwards not required to use the derefernce var. 
+    bcz already assign the value to the field-symbol
+
+data lv_REf type ref to i.
+create data lv_Ref.
+lv_Ref->* = 10.
+write lv_Ref->*.
+
+assign lv_Ref->* to field-symbols(<fs>).
+write : lv_REf->*, <fs>. both field-symbol and reference varaible both has the same value.
+
+
+data object : any kind of varaible/structures/tables... etc.
+
