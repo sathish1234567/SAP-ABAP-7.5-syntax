@@ -1,0 +1,51 @@
+Create the data reference veriables using new syntax:
+using NEW( ) constructor operator.
+
+Old syntax: 
+_________
+data : lv_Ref type ref to i.
+create data lv_Ref.
+lv_Ref->* = 1.
+write lv_Ref->*.
+
+New syntax:
+_____________
+data(<data_ref_var>) = NEW <data type>( ).
+data(lv_Ref) = NEW i( ). --> here it is creating the data reference variable type i and it is intializing the default values of i.
+                         --> beacuse we have not passed any value in constructor.
+
+data(lv_ref) = NEW i( 1 ) --> we are initializing the value with -1.
+write lv_Ref->*   " display the value as 1.
+
+NEW( ) --> why we are calling the constructor operator? beacause it is creating the expression type of lv_ref.
+       --> NEW operator also called as constructor operator.
+
+********************************************************************
+Create the class with NEW( ) key word:
+ -- for gloabal class :  we have to choose the ABAP class option in Eclipse.
+ -- right click on class name at definition: click on generate the construtor --> now it creates the construtor signature and implementation scalton.
+ Ex: calss zcl_syn_abap definition public final create public.
+      public section.
+        methods : construtor
+                    importing lv_Attr type any optional.
+      protected section.
+        data lv_attri type i.
+     endclass.
+     class zcl_syn_abap implementation.
+       method constructor.
+        lv_attr = lv_Attri.
+       endmethod.
+     endclass.
+
+  now consume above calss in outside it.
+old syn:
+  data lr_obj type ref to zcl_syn_abap.
+  create object lr_obj.
+
+New syntax.
+  data(lr_obj) = NEW  zcl_syn_abap( lv_attr =  'ram' ). -- using NEW( ), initializing the data.
+
+***************************************************************************************************
+
+creating the structure and table entries with #, data type and base.
+
