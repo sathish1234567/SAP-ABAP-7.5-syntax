@@ -82,4 +82,10 @@ or
 data(ls_data) = NEW #( client = sy-mandt id = '1' name = 'Ram' age = '30' ). // it fills the work area to ls_Data
 
 cl_demo_output=>display( ls_Data->* ) // with out dereferencing --> it will display as reference
+
+SAVE and activate  ---> output will display 
+oUTPUT:
+CLIENT  ID  NAME  AGE
+200      1  RAM   30
+
 data(lt_data) = NEW tt_zemp_ram(
