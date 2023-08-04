@@ -72,7 +72,7 @@ Now table created.
 Now fill the entries using NEW operator.
 
 Program:
-types : tt_zemp_ram type table of zemployee_ram.
+types : tt_zemp_ram type table of zemployee_ram with default key.
 types : ts_zemp_ram type ref to zemployee_ram
 
 data(ls_data) = NEW ts_zemp_ram( client = sy-mandt id = '1' name = 'Ram' age = '30' ). // it fills the work area to ls_Data
@@ -80,12 +80,16 @@ data(ls_data) = NEW ts_zemp_ram( client = sy-mandt id = '1' name = 'Ram' age = '
 or 
 
 data(ls_data) = NEW #( client = sy-mandt id = '1' name = 'Ram' age = '30' ). // it fills the work area to ls_Data
-
+data(lt_Data) = NEW #( ( client = sy-mandt id = '1' name = 'Ram' age = '30' )
+                      ( client = sy-mandt id = '1' name = 'Ram' age = '30' ) ). // to display the data
 cl_demo_output=>display( ls_Data->* ) // with out dereferencing --> it will display as reference
+cl_demo_output=>display( lt_Data->* ) // with out dereferencing --> it will display as reference
 
 SAVE and activate  ---> output will display 
 oUTPUT:
+ls_Data
 CLIENT  ID  NAME  AGE
 200      1  RAM   30
 
-data(lt_data) = NEW tt_zemp_ram(
+38:00
+
