@@ -48,4 +48,38 @@ New syntax.
 ***************************************************************************************************
 
 creating the structure and table entries with #, data type and base.
+Note: right click it open with --> GUI ( in Eclipse ) -- also open the GUI in eclispse
+Note : in cloud we don't have the GUI options at all.
 
+create the table: globally
+
+@EnduserText.label : 'Employee' -->Short DESCRIPTION -- SE11
+@AbapCatalog.enhancementCategory : #NOT_EXTENSIBLE --> SE11 -->Extras -->Enhancement Category - Can't be Enhanced
+@AbapCatalog.tableCategory :  #TRANSPARENT  --> Table type :#TRANSPARENT
+@AbapCatalog.deliveryClass : #A   --> SE11 -->Tab( Delivery and Maintenance ) Delivery Class
+@AbapCatalog.dataMaintenance : #RESTRICTED -->SE11--->Tab( Delivery and Maintenance )- Databrowser/Table View Editing-Display- Maintenance Allowed with Restrictions
+define table zemployee_ram{
+  key client : abap.clnt;  // MANDT
+  key id : char10;
+      name : char20;
+      age  : zage_r; --> right click create the data elt. --> further characteristics(SE11) : Additional Props
+      }
+
+SAVE and ACTIVATE .. 
+
+Now table created.
+
+Now fill the entries using NEW operator.
+
+Program:
+types : tt_zemp_ram type table of zemployee_ram.
+types : ts_zemp_ram type ref to zemployee_ram
+
+data(ls_data) = NEW ts_zemp_ram( client = sy-mandt id = '1' name = 'Ram' age = '30' ). // it fills the work area to ls_Data
+
+or 
+
+data(ls_data) = NEW #( client = sy-mandt id = '1' name = 'Ram' age = '30' ). // it fills the work area to ls_Data
+
+cl_demo_output=>display( ls_Data->* ) // with out dereferencing --> it will display as reference
+data(lt_data) = NEW tt_zemp_ram(
