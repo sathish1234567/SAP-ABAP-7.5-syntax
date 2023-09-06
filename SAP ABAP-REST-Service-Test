@@ -1,4 +1,4 @@
-REPORT ysat_darwin.
+REPORT ysat_dtest.
 PARAMETERS : p_e RADIOBUTTON GROUP rad USER-COMMAND rad,
              p_r RADIOBUTTON GROUP rad.
 DATA : lv_service_url TYPE string,
