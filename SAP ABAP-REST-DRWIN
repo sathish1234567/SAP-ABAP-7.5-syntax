@@ -1,0 +1,148 @@
+REPORT ysat_darwin.
+PARAMETERS : p_e RADIOBUTTON GROUP rad USER-COMMAND rad,
+             p_r RADIOBUTTON GROUP rad.
+DATA : lv_service_url TYPE string,
+              lv_sap_res     TYPE string,
+              l_respuesta    TYPE string,
+              lv_response    TYPE string,
+             gs_json TYPE string,
+            gs_http_vp     TYPE ihttpnvp,
+            gt_http_vp     TYPE tihttpnvp.
+DATA : lo_http_client  TYPE REF TO if_http_client,
+
+       lo_http_request TYPE REF TO if_http_entity,
+       lv_date TYPE vbak-erdat.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME.
+PARAMETERS   : from_dt TYPE sy-datum MODIF ID dat DEFAULT '20230120',
+             to_date  TYPE sy-datum MODIF ID dat DEFAULT sy-datum,
+             status TYPE c MODIF ID dat DEFAULT '1'.
+SELECTION-SCREEN END OF BLOCK b1.
+
+AT SELECTION-SCREEN OUTPUT.
+  IF p_r EQ 'X'.
+    LOOP AT SCREEN.
+      IF screen-group1 = 'DAT'.
+        screen-active = 1.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ELSE.
+    LOOP AT SCREEN.
+      IF screen-group1 = 'DAT'.
+        screen-active = 0.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+
+START-OF-SELECTION.
+  DATA lv_fdate TYPE string.
+  DATA lv_tdate TYPE string.
+  lv_fdate = |{ from_dt+6(2) }-{ from_dt+4(2) }-{ from_dt+0(4) } 00:00:00|.
+  lv_tdate = |{ to_date+6(2) }-{ to_date+4(2) }-{ to_date+0(4) } 23:59:59|.
+  CLEAR : gs_json.
+  IF NOT p_r IS INITIAL.
+    lv_service_url  = |https://premium.stage.darwinbox.io/reimbursementapi/reimbursementlist|.
+    CONCATENATE
+    '{'
+        '"api_key": "7fbb0a1a0b55bb3a73d89315414e1070e22acd96ba53d50aa56f100be93ae1f19af0d5c1f433368969f1a4142e67f62000d628c51d567406cd5f03885519a210",'
+        '"from": "' lv_fdate '",' "20-01-2023 00:42:14",'
+        '"to": "' lv_tdate '",' "21-08-2023 23:42:14",'
+        '"status": "' Status '"' ""0"'
+    '}' INTO gs_json.
+  ELSEIF NOT p_e IS INITIAL.
+    lv_service_url  = |https://premium.stage.darwinbox.io/masterapi/employee|.
+    CONCATENATE
+  '{'
+      '"api_key": "7c4fa99d917ff0a9d6a02275b645af9795159a4c1abb57821bdd474390cfdaf6ba8af5992c0092710951888589d809a5fcd361fe898cc4a0c222c9b93c15812b",'
+      '"datasetKey": "b02790a1a098c221cb90ee62a3ccf76643bc2d1d9b5ac24770c074fa280a2dc6d73171e5b1413d49745060b5c4060a7b30f7d6616f846cebb5061ef272ce46a8"'
+  '}' INTO gs_json.
+  ENDIF.
+*/ui2/cl_json=>serialize(
+*EXPORTING
+*data        =  gs_bp   " Data to serialize
+**       COMPRESS    = ABAP_true    " Skip empty elements
+**       NAME        =     " Object name
+**       PRETTY_NAME = /ui2/cl_json=>pretty_mode-camel_case    " Pretty Print property names
+**       TYPE_DESCR  =     " Data descriptor
+*      RECEIVING
+*      r_json      =   gs_json  " JSON string
+*      ).
+
+
+
+  CALL METHOD cl_http_client=>create_by_url
+    EXPORTING
+      url                = lv_service_url
+    IMPORTING
+      client             = lo_http_client
+    EXCEPTIONS
+      argument_not_found = 1
+      plugin_not_active  = 2
+      internal_error     = 3
+      OTHERS             = 4.
+
+
+
+*set http method POST
+  CALL METHOD lo_http_client->request->set_method(
+    if_http_request=>co_request_method_post ).
+
+*set protocol version
+  lo_http_client->request->set_version( if_http_request=>co_protocol_version_1_0 ).
+
+*CALL METHOD lo_http_client->request->if_http_entity~set_formfield_encoding
+*  EXPORTING
+*    formfield_encoding = cl_http_request=>if_http_entity~co_encoding_raw.
+
+*content type
+  CALL METHOD lo_http_client->request->if_http_entity~set_content_type
+    EXPORTING
+      content_type = if_rest_media_type=>gc_appl_json.
+
+*CALL METHOD lo_http_client->request->set_header_field
+*  EXPORTING
+*    name  = 'Accept'
+*    value = '*/*'.
+
+  CALL METHOD lo_http_client->request->set_header_field
+    EXPORTING
+      name  = 'authorization'
+      value = 'Basic cHRwbF9zYXBfaW50ZWdyYXRpb246UHRwbEAxMjM='.
+
+*get data
+  CLEAR : lv_sap_res, lv_response.
+
+  lo_http_request = lo_http_client->request.
+
+*append data
+  lo_http_request->append_cdata( data = gs_json ).
+
+  CALL METHOD lo_http_client->send(
+    EXPORTING
+      timeout                    = 15
+    EXCEPTIONS
+      http_communication_failure = 1
+      http_invalid_state         = 2
+      http_processing_failed     = 3
+      OTHERS                     = 4 ).
+
+  CALL METHOD lo_http_client->receive(
+    EXCEPTIONS
+      http_communication_failure = 1
+      http_invalid_state         = 2
+      http_processing_failed     = 3
+      OTHERS                     = 4 ).
+
+*response
+*data(lo_res) = lo_http_client->response.
+  lv_response = lo_http_client->response->get_cdata( ).
+*WRITE : lv_response.
+  DATA lv_html TYPE string.
+  CALL TRANSFORMATION sjson2html SOURCE XML lv_response
+                      RESULT XML lv_html.
+
+  cl_abap_browser=>show_html( title = 'Json Format'
+                              html_string =  lv_html ).
+
+  lo_http_client->close( ).
