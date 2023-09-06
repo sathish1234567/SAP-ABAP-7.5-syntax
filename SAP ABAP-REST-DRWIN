@@ -42,20 +42,20 @@ START-OF-SELECTION.
   lv_tdate = |{ to_date+6(2) }-{ to_date+4(2) }-{ to_date+0(4) } 23:59:59|.
   CLEAR : gs_json.
   IF NOT p_r IS INITIAL.
-    lv_service_url  = |https://premium.stage.darwinbox.io/reimbursementapi/reimbursementlist|.
+    lv_service_url  = |https://xxxx.com.io/reimbursementapi/entityset|.
     CONCATENATE
     '{'
-        '"api_key": "7fbb0a1a0b55bb3a73d89315414e1070e22acd96ba53d50aa56f100be93ae1f19af0d5c1f433368969f1a4142e67f62000d628c51d567406cd5f03885519a210",'
+        '"api_key": "7fbb0a1a0b55bb3a73d89315414e1070e22acd96ba53d50aa56f100be93ae1f19af0d5c1f433368969f1a4142e67f62000d628c51d567406cd5f03885519a",'
         '"from": "' lv_fdate '",' "20-01-2023 00:42:14",'
         '"to": "' lv_tdate '",' "21-08-2023 23:42:14",'
         '"status": "' Status '"' ""0"'
     '}' INTO gs_json.
   ELSEIF NOT p_e IS INITIAL.
-    lv_service_url  = |https://premium.stage.darwinbox.io/masterapi/employee|.
+    lv_service_url  = |https://xxxxx.com.io/masterapi/entityset|.
     CONCATENATE
   '{'
-      '"api_key": "7c4fa99d917ff0a9d6a02275b645af9795159a4c1abb57821bdd474390cfdaf6ba8af5992c0092710951888589d809a5fcd361fe898cc4a0c222c9b93c15812b",'
-      '"datasetKey": "b02790a1a098c221cb90ee62a3ccf76643bc2d1d9b5ac24770c074fa280a2dc6d73171e5b1413d49745060b5c4060a7b30f7d6616f846cebb5061ef272ce46a8"'
+      '"api_key": "7c4fa99d917ff0a9d6a02275b645af9795159a4c1abb57821bdd474390cfdaf6ba8af5992c0092710951888589d809a5fcd361fe898cc4a0c222c9b93c158",'
+      '"datasetKey": "b02790a1a098c221cb90ee62a3ccf76643bc2d1d9b5ac24770c074fa280a2dc6d73171e5b1413d49745060b5c4060a7b30f7d6616f846cebb5061ef272ce4"'
   '}' INTO gs_json.
   ENDIF.
 */ui2/cl_json=>serialize(
@@ -108,7 +108,7 @@ START-OF-SELECTION.
   CALL METHOD lo_http_client->request->set_header_field
     EXPORTING
       name  = 'authorization'
-      value = 'Basic cHRwbF9zYXBfaW50ZWdyYXRpb246UHRwbEAxMjM='.
+      value = 'Basic Base64Encode='.
 
 *get data
   CLEAR : lv_sap_res, lv_response.
