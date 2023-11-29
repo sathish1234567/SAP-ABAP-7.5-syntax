@@ -12,3 +12,54 @@ lr_bukrs_01 = VALUE lr_bukrs_type(
                                    ( low = '0700' )
                                   ).
 ​
+Using MACRO: This is the simplest way. Please check the below section for quick reference.
+TYPES lr_bukrs_type TYPE RANGE OF bukrs.
+DATA : lr_bukrs_01 TYPE lr_bukrs_type, "Table 1
+       lr_bukrs_02 TYPE lr_bukrs_type. "Table 2
+
+* Using MACRO
+*--------------------------------------------------------------------*
+DEFINE range_bukrs.
+  lr_bukrs_01 = VALUE lr_bukrs_type(
+                                      BASE lr_bukrs_01 (
+                                                        sign = 'I'
+                                                        option = 'EQ'
+                                                        low = &1
+                                                        )
+                                    ).
+END-OF-DEFINITION.
+
+*--------------------------------------------------------------------*
+range_bukrs: '0100', '0200', '0300', '0400', '0500', '0600', '0700'.
+*--------------------------------------------------------------------*​
+
+Using FOR LOOP: By this procedure, one can populate the range table w.r.t another table. Please check the below section for quick reference.
+TYPES lr_bukrs_type TYPE RANGE OF bukrs.
+DATA : lr_bukrs_01 TYPE lr_bukrs_type, "Table 1
+       lr_bukrs_02 TYPE lr_bukrs_type. "Table 2
+
+* Using MACRO
+DEFINE range_bukrs.
+  lr_bukrs_01 = VALUE lr_bukrs_type(
+                                      BASE lr_bukrs_01 (
+                                                        sign = 'I'
+                                                        option = 'EQ'
+                                                        low = &1
+                                                        )
+                                    ).
+END-OF-DEFINITION.
+
+range_bukrs: '0100', '0200', '0300', '0400', '0500', '0600', '0700'.
+
+* Combining LET with FOR LOOP
+*--------------------------------------------------------------------*
+lr_bukrs_02 = VALUE #( FOR ls_bukrs IN lr_bukrs_01
+*                          ( sign = 'I'      "Alternatively
+*                            option = 'EQ'   "Alternatively
+                             LET s = 'I'
+                                 o = 'EQ'
+                             IN sign   = s
+                                option = o
+                           ( low = ls_bukrs-low )
+                      ).
+​
