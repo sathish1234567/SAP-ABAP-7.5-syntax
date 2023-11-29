@@ -1,0 +1,14 @@
+lr_bukrs_01 = VALUE lr_bukrs_type(
+                                LET s = 'I'
+                                    o = 'EQ'
+                                IN sign   = s
+                                   option = o
+                                   ( low = '0100' )
+                                   ( low = '0200' )
+                                   ( low = '0300' )
+                                   ( low = '0400' )
+                                   ( low = '0500' )
+                                   ( low = '0600' )
+                                   ( low = '0700' )
+                                  ).
+​
