@@ -1,0 +1,2868 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZFI_MIGO_MIRO_AUTO1_N_TOP
+*&---------------------------------------------------------------------*
+
+TABLES : mkpf, ekpo.
+TABLES : sscrfields .
+TYPES : BEGIN OF gty_final,
+          ebeln      TYPE ebeln,
+          ebelp      TYPE ebelp,
+          matnr      TYPE matnr,
+          maktx      TYPE maktx,
+          menge      TYPE bstmg,
+          menge_c    TYPE bstmg,
+          menge_m    TYPE bstmg,
+          zuonr      TYPE dzuonr,
+          xblnr      TYPE xblnr,
+          bedat      TYPE ekko-bedat,
+          bukrs      TYPE bukrs,
+          zterm      TYPE ekko-zterm,
+          j_1bbranch TYPE j_1bbranc_,
+          mwskz      TYPE mwskz,
+          netpr      TYPE bprei,
+          meins      TYPE bstme,
+          lifnr      TYPE lifnr,
+          werks      TYPE werks_d,
+          vbeln      TYPE vbeln_vf,
+          gjahr      TYPE gjahr,
+          msg        TYPE bapi_msg,
+          icon       TYPE char4,
+        END OF gty_final.
+DATA gt_final TYPE TABLE OF gty_final.
+DATA gs_final TYPE gty_final.
+DATA gv_error.
+DATA: error_in_data TYPE c.
+DATA gs_ekko TYPE ekko.
+
+DATA: ok_code            LIKE sy-ucomm,
+      save_ok            LIKE sy-ucomm,
+      g_container        TYPE scrfname VALUE 'BCALV_GRID_DEMO_0100_CONT1',
+      lo_grid            TYPE REF TO cl_gui_alv_grid,
+      g_custom_container TYPE REF TO cl_gui_custom_container,
+      gt_fcat            TYPE lvc_t_fcat,
+      gs_layout          TYPE lvc_s_layo,
+      gv_pos             TYPE i.
+DATA gs_toolbar  TYPE stb_button.
+*      g_max              TYPE i VALUE 100.
+
+CLASS lcl_event_receiver DEFINITION DEFERRED.
+
+DATA: g_event_receiver TYPE REF TO lcl_event_receiver.
+
+CLASS lcl_event_receiver DEFINITION.
+
+  PUBLIC SECTION.
+    METHODS:
+      handle_data_changed
+                    FOR EVENT data_changed OF cl_gui_alv_grid
+        IMPORTING er_data_changed.
+
+    METHODS :    handle_user_command
+                  FOR EVENT user_command OF cl_gui_alv_grid
+      IMPORTING e_ucomm.
+
+    METHODS : handle_toolbar
+                  FOR EVENT toolbar OF cl_gui_alv_grid
+      IMPORTING e_object e_interactive.
+  PRIVATE SECTION.
+
+
+
+* Methods to modularize event handler method HANDLE_DATA_CHANGED:
+    METHODS: check_qty
+      IMPORTING
+        fname             TYPE string
+        ps_good_planetype TYPE lvc_s_modi
+        pr_data_changed   TYPE REF TO cl_alv_changed_data_protocol.
+
+
+ENDCLASS.
+
+CLASS lcl_event_receiver IMPLEMENTATION.
+  METHOD handle_data_changed.
+    DATA: ls_good TYPE lvc_s_modi.
+    DATA lv_zuonr TYPE string.
+    DATA lv_xblnr TYPE string.
+    DATA lv_fname TYPE string.
+
+    DATA: li_rows    TYPE lvc_s_roid,
+          li_col     TYPE lvc_s_col,
+          lws_row_id TYPE lvc_s_roid,
+          lws_col_id TYPE lvc_s_col,
+          ls_col     TYPE lvc_s_col,
+          ls_num     TYPE lvc_s_roid.
+
+
+    error_in_data = space.
+* get the latest field position
+    CALL METHOD lo_grid->get_current_cell
+      IMPORTING
+        es_col_id = li_col
+        es_row_no = li_rows.
+
+    CALL METHOD lo_grid->get_scroll_info_via_id
+      IMPORTING
+        es_col_info = ls_col
+        es_row_no   = ls_num.
+
+    LOOP AT er_data_changed->mt_good_cells INTO ls_good.
+      lv_fname = ls_good-fieldname.
+      CASE ls_good-fieldname.
+* check if column PLANETYPE of this row was changed
+
+        WHEN 'MENGE_M' OR 'ZUONR' OR 'XBLNR'.
+          CALL METHOD check_qty
+            EXPORTING
+              fname             = lv_fname
+              ps_good_planetype = ls_good
+              pr_data_changed   = er_data_changed.
+      ENDCASE.
+    ENDLOOP.
+
+    lo_grid->refresh_table_display( ).
+
+* Position back to the latest field
+    CALL METHOD lo_grid->set_scroll_info_via_id
+      EXPORTING
+        is_col_info = ls_col
+        is_row_no   = ls_num.
+
+    lws_row_id-row_id    = li_rows-row_id.
+    lws_col_id-fieldname = li_col-fieldname.
+
+    CALL METHOD lo_grid->set_current_cell_via_id
+      EXPORTING
+        is_column_id = lws_col_id
+        is_row_no    = lws_row_id.
+  ENDMETHOD.
+
+  METHOD check_qty.
+    DATA: l_menge          TYPE i,
+          ls_saplane       TYPE saplane,
+          ls_good_seatsocc TYPE lvc_s_modi,
+          lv_zuonr         TYPE string,
+          lv_xblnr         TYPE string.
+
+
+    CLEAR gs_final.
+    READ TABLE gt_final ASSIGNING FIELD-SYMBOL(<ls_final>) INDEX ps_good_planetype-row_id.
+    IF sy-subrc EQ 0.
+      CASE fname.
+        WHEN 'MENGE_M'.
+          CALL METHOD pr_data_changed->get_cell_value
+            EXPORTING
+              i_row_id    = ps_good_planetype-row_id
+              i_fieldname = ps_good_planetype-fieldname
+            IMPORTING
+              e_value     = l_menge.
+          DATA(lv_menge_d) =  <ls_final>-menge - <ls_final>-menge_c.
+
+          IF lv_menge_d GT 0 AND l_menge GT lv_menge_d ."OR
+*                               l_menge GT <ls_final>-menge_c )."GT ( <ls_final>-menge - <ls_final>-menge_c ).
+            <ls_final>-msg = 'Could not process due to more quantity'.
+            <ls_final>-icon = '1'.
+*        MESSAGE 'Could not process due to more quantity' TYPE 'S'.
+            CALL METHOD cl_gui_cfw=>set_new_ok_code
+              EXPORTING
+                new_code = 'DUMMY'.
+            error_in_data = 'X'.
+*        CALL METHOD pr_data_changed->add_protocol_entry
+*          EXPORTING
+*            i_msgid     = '00'
+*            i_msgno     = '001'
+*            i_msgty     = 'E'
+*            i_msgv1     = 'Could not process due to more quantity-'
+*            i_msgv2     = l_menge
+**           i_msgv3     = text-m05
+*            i_fieldname = ps_good_planetype-fieldname
+*            i_row_id    = ps_good_planetype-row_id.
+          ELSE.
+            IF <ls_final>-menge EQ <ls_final>-menge_c AND l_menge GT 0.
+              <ls_final>-msg = 'Could not process due to more quantity'.
+              <ls_final>-icon = '1'.
+              error_in_data = 'X'.
+            ELSE.
+              CLEAR : <ls_final>-icon ,
+              <ls_final>-msg,
+              error_in_data.
+              <ls_final>-menge_m = l_menge.
+            ENDIF.
+          ENDIF.
+        WHEN 'ZUONR'.
+          CALL METHOD pr_data_changed->get_cell_value
+            EXPORTING
+              i_row_id    = ps_good_planetype-row_id
+              i_fieldname = ps_good_planetype-fieldname
+            IMPORTING
+              e_value     = lv_zuonr.
+
+          <ls_final>-zuonr = lv_zuonr.
+          CLEAR : <ls_final>-icon ,
+            <ls_final>-msg,
+            error_in_data.
+
+        WHEN 'XBLNR'.
+          CALL METHOD pr_data_changed->get_cell_value
+            EXPORTING
+              i_row_id    = ps_good_planetype-row_id
+              i_fieldname = ps_good_planetype-fieldname
+            IMPORTING
+              e_value     = lv_xblnr.
+          IF lv_xblnr IS INITIAL.
+          ELSE.
+            <ls_final>-xblnr = lv_xblnr.
+            CLEAR : <ls_final>-icon ,
+            <ls_final>-msg,
+            error_in_data.
+          ENDIF.
+      ENDCASE.
+    ELSE.
+
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD handle_user_command.
+
+    DATA: lt_rows TYPE lvc_t_row.
+
+
+    CASE e_ucomm.
+      WHEN 'SAVE'.
+*          * get selected row
+        CALL METHOD lo_grid->get_selected_rows
+          IMPORTING
+            et_index_rows = lt_rows.
+        IF ( lt_rows IS INITIAL ).
+          MESSAGE 'Please select at least a single row' TYPE 'S'.
+
+          CALL METHOD cl_gui_cfw=>set_new_ok_code
+            EXPORTING
+              new_code = 'DUMMY'.  " triggers PAI of the screen
+        ELSE.
+*          CALL METHOD cl_gui_cfw=>flush.
+*        ENDIF.
+          PERFORM vlidate_data_miropark USING lt_rows.
+          PERFORM post_parking USING lt_rows..
+        ENDIF.
+*        LEAVE TO SCREEN 100.
+      WHEN 'TO_SFLIGHT'.
+      WHEN 'REFR'.
+        PERFORM po.
+*        PERFORM load_sflight_table TABLES lt_rows.
+*        CALL SCREEN 200.
+
+    ENDCASE.
+*    ENDIF.
+    lo_grid->refresh_table_display( ).
+*    PERFORM messages.
+  ENDMETHOD.
+
+  METHOD handle_toolbar.
+* § 2.At event TOOLBAR define a toolbar element of type 1 by using
+*     event paramenter E_OBJECT. Remember its function code.
+*.......
+* Part I: Define a menu button including a function code that
+*         is evaluated in 'handle_MENU_BUTTON
+*.......
+
+
+* append a separator to normal toolbar
+*    CLEAR gs_toolbar.
+*    MOVE 0 TO gs_toolbar-butn_type.
+*    APPEND gs_toolbar TO e_object->mt_toolbar.
+*
+
+    CLEAR gs_toolbar.
+    MOVE 'PARK MIRO' TO gs_toolbar-text.
+    MOVE 'SAVE' TO gs_toolbar-function.
+    MOVE 0 TO gs_toolbar-butn_type.
+    MOVE space TO gs_toolbar-disabled.
+* --> This function code is evaluated in 'handle_menu_button'
+    MOVE icon_save_as_template TO gs_toolbar-icon.
+*    MOVE 'Flights'(200) TO gs_toolbar-quickinfo.
+*    MOVE 1 TO gs_toolbar-butn_type.
+*    MOVE space TO gs_toolbar-disabled.
+    APPEND gs_toolbar TO e_object->mt_toolbar.
+
+    CLEAR gs_toolbar.
+*    MOVE 'R' TO gs_toolbar-text.
+    MOVE 'REFR' TO gs_toolbar-function.
+    MOVE 0 TO gs_toolbar-butn_type.
+    MOVE space TO gs_toolbar-disabled.
+* --> This function code is evaluated in 'handle_menu_button'
+    MOVE icon_refresh TO gs_toolbar-icon.
+*    MOVE 'Flights'(200) TO gs_toolbar-quickinfo.
+*    MOVE 1 TO gs_toolbar-butn_type.
+*    MOVE space TO gs_toolbar-disabled.
+    APPEND gs_toolbar TO e_object->mt_toolbar.
+
+  ENDMETHOD.
+ENDCLASS.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME.
+PARAMETERS :r_grn RADIOBUTTON GROUP g1 USER-COMMAND rc DEFAULT 'X',
+            r_po  RADIOBUTTON GROUP g1.
+SELECTION-SCREEN END OF BLOCK b1.
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME.
+PARAMETERS : p_bukrs TYPE mseg-bukrs,
+*             p_mblnr TYPE mkpf-mblnr MODIF ID r1,
+             p_mjahr TYPE mkpf-mjahr MODIF ID r1,
+             p_ebeln TYPE ekpo-ebeln MODIF ID r2.
+SELECT-OPTIONS : p_ebelp FOR ekpo-ebelp MODIF ID r2 NO-DISPLAY,
+                 p_mblnr FOR mkpf-mblnr MODIF ID r1 .
+PARAMETERS : p_menge TYPE ekpo-menge MODIF ID r2 NO-DISPLAY.
+*             p_ebelp TYPE ekpo-ebelp MODIF ID r2.
+SELECTION-SCREEN END OF BLOCK b2.
+*--> End **********_TOP
+
+*&---------------------------------------------------------------------*
+*& Report  ZFI_MIGO_MIRO_AUTO1
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+REPORT zfi_migo_miro_auto1_n.
+
+
+INCLUDE zfi_migo_miro_auto1_n_top.
+INCLUDE zfi_migo_miro_auto1_n_pof01.
+*--> Changed by P.R on 03.11.2023
+
+TYPES : BEGIN OF ty_final,
+          ebeln TYPE ebeln,
+          ebelp TYPE ebelp,
+        END OF ty_final.
+
+TYPES : BEGIN OF ty_disp,
+          ebeln            TYPE ebeln,
+          ebelp            TYPE ebelp,
+          invoicedocnumber TYPE bapi_incinv_fld-inv_doc_no,
+          fiscalyear       TYPE bapi_incinv_fld-fisc_year,
+          menge            TYPE menge_d,
+          msg              TYPE char255,
+        END OF ty_disp.
+
+DATA : it_tab TYPE TABLE OF ty_final,
+       wa_tab TYPE          ty_final.
+
+DATA : it_disp TYPE TABLE OF ty_disp,
+       wa_disp TYPE          ty_disp.
+
+DATA : it_mkpf      TYPE TABLE OF mkpf.
+DATA : it_mkpf_m      TYPE TABLE OF mkpf.
+DATA : it_mkpf_s    TYPE TABLE OF mkpf,
+       it_ekbe      TYPE TABLE OF ekbe,
+       it_ekbe1     TYPE TABLE OF ekbe,
+       it_ekbe2     TYPE TABLE OF ekbe,
+       it_ekbe3     TYPE TABLE OF ekbe,
+       it_ekbe4     TYPE TABLE OF ekbe,
+       it_t001w     TYPE TABLE OF t001w,
+       it_sec       TYPE TABLE OF seccode,
+       it_ekko      TYPE TABLE OF ekko,
+       it_ekko1     TYPE TABLE OF ekko,
+       it_mseg      TYPE TABLE OF mseg,
+       it_ekpo      TYPE TABLE OF ekpo,
+       it_qals      TYPE TABLE OF qals,
+       lt_rbkp      TYPE TABLE OF rbkp,   "added on 031123
+       lt_lfbw      TYPE TABLE OF lfbw,   "added on 241123
+       lt_t059p     TYPE TABLE OF t059p,  "added on 241123
+       wa_t059p     TYPE t059p,
+       wa_lfbw      TYPE lfbw, "added on 241123
+       wa_mkpf      TYPE mkpf,
+       wa_ekbe      TYPE ekbe,
+       wa_ekbe1     TYPE ekbe,
+       wa_ekbe2     TYPE ekbe, "added on 031123
+       wa_ekbe3     TYPE ekbe, "added on 061123
+       wa_t001w     TYPE t001w,
+       wa_bkpf      TYPE bkpf,
+       wa_rbkp      TYPE rbkp,
+       wa_sec       TYPE seccode,
+       wa_ekko      TYPE ekko,
+       wa_ekpo      TYPE ekpo,
+       wa_qals      TYPE qals,
+       lv_awkey(20) TYPE c,
+       wa_mseg      TYPE mseg.
+
+DATA : ebeln   TYPE char30,
+       ebelp   TYPE char30,
+       line(5) TYPE n,
+       mode    TYPE char1.
+
+*DATA : lv_mes TYPE string.
+
+DATA : gw_fieldcat TYPE slis_fieldcat_alv,
+       gw_sortcat  TYPE slis_sortinfo_alv,
+       gw_layout   TYPE slis_layout_alv,
+       gw_events   TYPE slis_alv_event,
+       gt_fieldcat TYPE STANDARD TABLE OF slis_fieldcat_alv,
+       lv_pos      TYPE sy-cucol.
+
+DATA : it_head   TYPE TABLE OF bapi_incinv_create_header,
+       wa_head   TYPE bapi_incinv_create_header,
+       it_item   TYPE TABLE OF bapi_incinv_create_item,
+       wa_item   TYPE bapi_incinv_create_item,
+       it_acc    TYPE TABLE OF bapi_incinv_create_account,
+       wa_acc    TYPE bapi_incinv_create_account,
+       it_tax    TYPE TABLE OF bapi_incinv_create_tax,
+       wa_tax    TYPE bapi_incinv_create_tax,
+       it_with   TYPE TABLE OF bapi_incinv_create_withtax,
+       wa_with   TYPE bapi_incinv_create_withtax,
+       it_return TYPE TABLE OF bapiret2,
+       lt_return TYPE TABLE OF bapiret2,
+       wa_return TYPE bapiret2,
+       lv_msg    TYPE string, " Added by P.R on 03.11.2023
+       lv_msg1   TYPE string. " Added by P.R on 03.11.2023
+
+*Added on 24.11.23
+DATA : lw_taxcom TYPE taxcom,
+       lt_gst    TYPE TABLE OF komv,
+       lw_gst    TYPE komv.
+
+DATA : lv_tax     TYPE bseg-dmbtr,
+       lv_taxtot  TYPE bseg-dmbtr,
+       lv_gamount TYPE bseg-dmbtr,
+       lv_withamt TYPE bseg-dmbtr.
+
+DATA : line1(6) TYPE n,
+       v_wrbtr  TYPE char13.
+*ended on 24.11.23
+
+DATA : v_date TYPE char10,
+       n_date TYPE char10,
+       m_date TYPE char10.
+
+*--> Added on 03.11.2023 by P.R
+AT SELECTION-SCREEN OUTPUT.
+  IF r_grn = 'X'.
+    CLEAR : p_ebeln,
+            p_ebelp.
+    LOOP AT SCREEN.
+      IF screen-group1 = 'R1'.
+        screen-active = '1'.
+        MODIFY SCREEN.
+      ELSEIF screen-group1 = 'R2'.
+        screen-active = '0'.
+        MODIFY SCREEN.
+      ENDIF.
+    ENDLOOP.
+  ELSE.
+    CLEAR : p_mblnr,
+            p_mjahr.
+*            p_bukrs.
+    LOOP AT SCREEN.
+      IF screen-group1 = 'R1'.
+        screen-active = '0'.
+        MODIFY SCREEN.
+      ELSEIF screen-group1 = 'R2'.
+        screen-active = '1'.
+        MODIFY SCREEN.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+AT SELECTION-SCREEN .
+  PERFORM validate_po.
+*  PERFORM validate_grn.
+  CASE sscrfields.
+    WHEN 'A2'.
+      CLEAR :  p_mblnr,
+               p_mjahr,
+               p_bukrs,
+               p_ebelp,
+               p_ebelp.
+
+  ENDCASE.
+
+
+START-OF-SELECTION.
+  PERFORM validation.
+  IF r_grn = 'X'.
+*******GRN based********
+    PERFORM grn.
+
+    IF 1 = 2.
+      SELECT * FROM mkpf INTO TABLE it_mkpf WHERE mblnr IN p_mblnr[]
+                                              AND mjahr EQ p_mjahr.
+      IF sy-subrc NE 0.
+        MESSAGE 'No Data Found of GRN and Year' TYPE 'S' DISPLAY LIKE 'E'.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+
+      IF it_mkpf IS NOT INITIAL.
+        SELECT * FROM mseg INTO TABLE it_mseg FOR ALL ENTRIES IN it_mkpf
+                                              WHERE mblnr EQ it_mkpf-mblnr
+                                                AND mjahr EQ it_mkpf-mjahr
+                                                AND bukrs EQ p_bukrs.
+        IF sy-subrc NE 0.
+          MESSAGE 'No Data Found of Company code, GRN and Year' TYPE 'S'
+                  DISPLAY LIKE 'E'.
+          LEAVE LIST-PROCESSING.
+        ENDIF.
+        IF NOT it_mseg IS INITIAL.
+          DELETE it_mseg WHERE bwart NE '101'.
+          IF it_mseg IS INITIAL.
+            MESSAGE 'Please give GRN with movement type 101 only' TYPE 'S'
+                 DISPLAY LIKE 'E'.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+
+      IF it_mkpf IS NOT INITIAL AND it_mseg IS NOT INITIAL.
+
+        SELECT * FROM ekko INTO TABLE it_ekko1 FOR ALL ENTRIES IN it_mseg
+                                              WHERE ebeln = it_mseg-ebeln
+                                                AND bsart = 'ZUB'.
+        IF sy-subrc EQ 0.
+          MESSAGE 'You cannot park invoice for PO Type ZUB' TYPE 'S'
+                  DISPLAY LIKE 'E'.
+          LEAVE LIST-PROCESSING.
+        ENDIF.
+
+        SELECT * FROM qals INTO TABLE it_qals WHERE mblnr EQ p_mblnr
+                                              AND mjahr EQ p_mjahr
+                                              AND stat35 NE 'X'.
+        IF it_qals IS NOT INITIAL.
+          READ TABLE it_qals INTO wa_qals WITH KEY mblnr = p_mblnr
+                                                   mjahr = p_mjahr.
+          IF sy-subrc = 0.
+            CONCATENATE 'Quality Inspection' wa_qals-prueflos
+                        'not done. You cannot park Invoice for GRN'
+                        wa_qals-mblnr wa_qals-mjahr INTO lv_msg SEPARATED BY space.
+            MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+            LEAVE LIST-PROCESSING.
+          ENDIF.
+        ENDIF.
+
+        SELECT SINGLE * FROM ekbe INTO wa_ekbe2 WHERE lfbnr EQ p_mblnr
+                                                  AND lfgja EQ p_mjahr
+                                                  AND bewtp EQ 'Q'.
+        IF sy-subrc EQ 0.
+          SELECT * FROM rbkp INTO TABLE lt_rbkp WHERE belnr = wa_ekbe2-belnr
+                                                  AND gjahr = wa_ekbe2-gjahr
+                                                  AND stblg EQ space.
+          IF lt_rbkp IS NOT INITIAL.
+            CLEAR:wa_rbkp,wa_bkpf.
+            READ TABLE lt_rbkp INTO wa_rbkp INDEX 1.
+            CONCATENATE wa_rbkp-belnr wa_rbkp-gjahr INTO lv_awkey.
+            SELECT SINGLE * FROM bkpf INTO wa_bkpf WHERE  bukrs = wa_rbkp-bukrs
+                                                     AND  awkey = lv_awkey.
+            IF sy-subrc EQ 0.
+              CONCATENATE 'Invoice is already posted' 'MIRO'
+              wa_rbkp-belnr 'and' 'FI' wa_bkpf-belnr
+              '. You cannot park invoice for GRN'INTO lv_msg SEPARATED BY space.
+              MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+              LEAVE LIST-PROCESSING.
+            ENDIF.
+
+          ENDIF.
+          CLEAR: wa_ekbe2.
+        ENDIF.
+        "Service based START.
+
+        " Service Based GRN
+        SELECT * FROM ekbe INTO TABLE it_ekbe WHERE belnr EQ p_mblnr
+                                                AND gjahr EQ p_mjahr
+                                                AND lfbnr NE p_mblnr
+                                                AND bewtp EQ 'E'
+                                                AND bwart EQ '101'.
+        IF sy-subrc EQ 0.
+          SELECT * FROM ekko INTO TABLE it_ekko FOR ALL ENTRIES IN it_ekbe
+                                                  WHERE ebeln EQ it_ekbe-ebeln
+                                                    AND bukrs EQ p_bukrs
+                                                    AND waers EQ 'INR'.
+
+          IF sy-subrc NE 0.
+            MESSAGE 'Please select GRN with PO Currency INR only' TYPE 'S'
+                    DISPLAY LIKE 'E'.
+            LEAVE LIST-PROCESSING.
+          ELSE.
+            SELECT * FROM ekpo INTO TABLE it_ekpo FOR ALL ENTRIES IN it_ekbe
+                                            WHERE ebeln EQ it_ekbe-ebeln.
+          ENDIF.
+
+          SELECT * FROM ekbe INTO TABLE it_ekbe4 FOR ALL ENTRIES IN it_ekbe
+                                                 WHERE lfbnr EQ it_ekbe-lfbnr
+                                                   AND lfgja EQ it_ekbe-lfgja
+                                                   AND bewtp IN ('T', 'Q').
+          IF sy-subrc EQ 0.
+
+            READ TABLE  it_ekbe4 INTO wa_ekbe
+            WITH KEY bewtp = 'T'.
+            IF sy-subrc EQ 0.
+              CONCATENATE 'Invoice is already parked ' wa_ekbe-belnr
+              INTO lv_msg SEPARATED BY '-'.
+              MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+              LEAVE LIST-PROCESSING.
+            ENDIF.
+
+            CLEAR : lv_awkey,
+                    wa_bkpf,
+                    wa_rbkp.
+            it_ekbe3 = it_ekbe4.
+            DELETE it_ekbe3 WHERE NOT bewtp EQ 'Q'.
+            IF NOT it_ekbe3 IS INITIAL.
+              SELECT * FROM rbkp INTO TABLE lt_rbkp
+                                 FOR ALL ENTRIES IN it_ekbe3
+                                 WHERE belnr = it_ekbe3-belnr
+                                 AND gjahr = it_ekbe3-gjahr
+                                 AND stblg EQ space
+                                 AND xrech EQ 'X'.
+              IF lt_rbkp IS NOT INITIAL.
+                CLEAR:wa_rbkp,wa_bkpf.
+                SORT lt_rbkp BY gjahr DESCENDING belnr DESCENDING.
+                READ TABLE lt_rbkp INTO wa_rbkp INDEX 1.
+                CONCATENATE wa_rbkp-belnr wa_rbkp-gjahr INTO lv_awkey.
+                SELECT SINGLE * FROM bkpf INTO wa_bkpf WHERE  bukrs = wa_rbkp-bukrs
+                                                         AND  awkey = lv_awkey.
+                IF sy-subrc EQ 0.
+                  CONCATENATE 'Invoice is already posted' 'MIRO'
+                  wa_rbkp-belnr 'and' 'FI' wa_bkpf-belnr '. You cannot park invoice for GRN' INTO lv_msg SEPARATED BY space.
+                  MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+                  LEAVE LIST-PROCESSING.
+                ENDIF.
+              ENDIF.
+              CLEAR: wa_ekbe2.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+        "Service based END.
+
+
+        "Material Based GRN
+        IF it_ekbe IS INITIAL.
+          SELECT * FROM ekbe INTO TABLE it_ekbe WHERE belnr EQ p_mblnr
+                                                  AND gjahr EQ p_mjahr
+                                                  AND lfbnr EQ p_mblnr
+                                                  AND bewtp EQ 'E'
+                                                  AND bwart EQ '101'.
+          IF sy-subrc EQ 0.
+            SELECT SINGLE * FROM ekbe INTO wa_ekbe1 WHERE lfbnr EQ p_mblnr
+                                                      AND lfgja EQ p_mjahr
+                                                      AND bewtp EQ 'T'.
+            IF sy-subrc EQ 0.
+              CONCATENATE 'Invoice is already parked ' ' - ' wa_ekbe1-belnr INTO lv_msg.
+              MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+              LEAVE LIST-PROCESSING.
+            ENDIF.
+
+            IF it_ekbe IS NOT INITIAL.
+              SELECT * FROM ekko INTO TABLE it_ekko FOR ALL ENTRIES IN it_ekbe
+                                                    WHERE ebeln EQ it_ekbe-ebeln
+                                                      AND bukrs EQ p_bukrs
+                                                      AND waers EQ 'INR'.
+
+              IF sy-subrc NE 0.
+                MESSAGE 'Please select GRN with PO Currency INR only' TYPE 'S'
+                        DISPLAY LIKE 'E'.
+                LEAVE LIST-PROCESSING.
+              ELSE.
+                SELECT * FROM usr21
+                         INTO TABLE @DATA(it_usr21)
+                         FOR ALL ENTRIES IN @it_ekko[]
+                         WHERE bname = @it_ekko-ernam.
+                IF sy-subrc EQ 0.
+                  SELECT * FROM adrp
+                           INTO TABLE @DATA(it_adrp)
+                           FOR ALL ENTRIES IN @it_usr21
+                           WHERE persnumber = @it_usr21-persnumber.
+                ENDIF.
+              ENDIF.
+
+              SELECT * FROM ekpo INTO TABLE it_ekpo FOR ALL ENTRIES IN it_ekbe
+                                                    WHERE ebeln EQ it_ekbe-ebeln.
+
+              SELECT * FROM t001w INTO TABLE it_t001w FOR ALL ENTRIES IN it_ekbe
+                                                      WHERE werks EQ it_ekbe-werks.
+
+              SELECT * FROM seccode INTO TABLE it_sec.
+
+            ENDIF.
+          ENDIF.
+        ENDIF.
+        "Material Based GRN END.
+      ENDIF.
+
+      LOOP AT it_mkpf INTO wa_mkpf.
+
+        READ TABLE it_mseg INTO wa_mseg WITH KEY mblnr = wa_mkpf-mblnr
+                                                 mjahr = wa_mkpf-mjahr.
+
+        IF sy-subrc EQ 0.
+          READ TABLE it_ekko INTO wa_ekko WITH KEY ebeln = wa_mseg-ebeln.
+        ENDIF.
+
+        CLEAR : v_date , n_date, m_date.
+        CONCATENATE wa_mkpf-bldat+6(2) wa_mkpf-bldat+4(2) wa_mkpf-bldat+0(4) INTO n_date.
+        CONCATENATE wa_mkpf-cpudt+6(2) wa_mkpf-cpudt+4(2) wa_mkpf-cpudt+0(4) INTO m_date.
+        CONCATENATE sy-datum+6(2) sy-datum+4(2) sy-datum+0(4) INTO v_date.
+
+        wa_head-invoice_ind = 'X'.
+        wa_head-doc_date = wa_mkpf-bldat.
+        wa_head-pstng_date  = wa_mkpf-budat."sy-datum.
+        wa_head-comp_code = wa_mseg-bukrs.
+        wa_head-currency = 'INR'.
+        wa_head-gross_amount = ' '.
+        wa_head-item_text = wa_mseg-ebeln.
+        wa_head-alloc_nmbr = wa_mkpf-xblnr. "'Assignment'
+        wa_head-pmnttrms = wa_ekko-zterm.
+        wa_head-bline_date = wa_mkpf-cpudt.
+*      wa_head-header_txt = wa_mkpf-bktxt.
+        wa_head-ref_doc_no = wa_mkpf-xblnr. "wa_mkpf-bktxt.
+        wa_head-business_place = 'MH01'.
+        wa_head-calc_tax_ind = 'X'.
+
+        READ TABLE it_ekko INTO wa_ekko
+             WITH KEY ebeln = wa_mseg-ebeln.
+        IF sy-subrc EQ 0.
+          READ TABLE it_usr21 INTO DATA(wa_usr21)
+               WITH KEY bname = wa_ekko-ernam.
+          IF sy-subrc EQ 0.
+            READ TABLE it_adrp INTO DATA(wa_adrp)
+                 WITH KEY persnumber = wa_usr21-persnumber.
+            IF sy-subrc EQ 0.
+              wa_head-header_txt = wa_adrp-name_text.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+
+        " Either Material based or Service based data
+        LOOP AT it_ekbe INTO wa_ekbe WHERE belnr EQ wa_mkpf-mblnr
+                                       AND gjahr EQ wa_mkpf-mjahr
+                                       AND bwart = '101'.
+
+          line = line + '00001'.
+          wa_item-invoice_doc_item = line.
+          wa_item-po_number = wa_ekbe-ebeln.
+          wa_item-po_item = wa_ekbe-ebelp.
+          IF wa_ekbe-lfbnr NE wa_mkpf-mblnr.
+            " Service Based
+            wa_item-sheet_no = wa_ekbe-lfbnr.
+            IF NOT wa_ekbe-lfpos IS INITIAL.
+              wa_item-sheet_item = wa_ekbe-lfpos * 10.
+            ELSEIF wa_ekbe-lfpos IS INITIAL.
+              wa_item-sheet_item = '0000000010'.
+            ENDIF.
+          ELSE.
+            "Material Based
+            wa_item-ref_doc = wa_ekbe-belnr.
+            wa_item-ref_doc_year  = wa_ekbe-gjahr.
+            wa_item-ref_doc_it = wa_ekbe-buzei.
+            lv_withamt = lv_withamt + wa_ekbe-dmbtr.
+          ENDIF.
+
+          wa_item-item_amount = wa_ekbe-dmbtr.
+          wa_item-quantity = wa_ekbe-menge.
+
+          READ TABLE it_ekpo INTO wa_ekpo WITH KEY ebeln = wa_ekbe-ebeln
+                                                   ebelp = wa_ekbe-ebelp.
+          IF sy-subrc EQ 0.
+            IF NOT wa_ekpo-matnr IS INITIAL.
+              wa_item-po_unit = wa_ekpo-meins.
+            ELSE.
+              READ TABLE it_mseg INTO wa_mseg
+                   WITH KEY mblnr = wa_ekbe-belnr
+                            mjahr = wa_ekbe-gjahr
+                            zeile = wa_ekbe-buzei.
+              IF sy-subrc EQ 0.
+                wa_item-po_unit = wa_mseg-erfme.
+              ENDIF.
+            ENDIF.
+            wa_item-tax_code = wa_ekpo-mwskz.
+          ENDIF.
+
+          IF wa_item-tax_code IS NOT INITIAL.
+            CLEAR : lw_taxcom, lt_gst.
+            lw_taxcom-bukrs = wa_head-comp_code.
+            lw_taxcom-budat = wa_head-pstng_date.
+            lw_taxcom-waers = wa_head-currency.
+            lw_taxcom-kposn = wa_item-po_item.
+            lw_taxcom-mwskz = wa_item-tax_code.
+            lw_taxcom-wrbtr = wa_item-item_amount.
+            lw_taxcom-lifnr = wa_ekko-lifnr.
+            IF wa_ekpo-matnr IS NOT INITIAL.
+              lw_taxcom-matnr = wa_ekpo-matnr.
+              lw_taxcom-werks = wa_ekpo-werks.
+            ELSEIF wa_ekpo-matnr IS INITIAL.
+              lw_taxcom-ebeln = wa_ekpo-ebeln.
+              lw_taxcom-ebelp = wa_ekpo-ebelp.
+            ENDIF.
+            CALL FUNCTION 'CALCULATE_TAX_ITEM'
+              EXPORTING
+                i_taxcom = lw_taxcom
+              TABLES
+                t_xkomv  = lt_gst.
+            IF sy-subrc <> 0.
+*                  Implement suit able error handling here
+            ENDIF.
+            CLEAR : lw_gst.
+            LOOP AT lt_gst INTO lw_gst WHERE kbetr NE ' ' AND kschl NE 'JITC'.
+              CLEAR : lv_tax.
+              lv_tax = ( lw_gst-kawrt * lw_gst-kbetr ) / 1000.
+              lv_taxtot = lv_taxtot + lv_tax.
+              CLEAR : lw_gst.
+            ENDLOOP.
+          ENDIF.
+          lv_gamount = wa_item-item_amount + lv_taxtot.
+          wa_head-gross_amount = wa_head-gross_amount + lv_gamount.
+*        lv_withamt = lv_withamt + wa_item-item_amount.
+*        lv_withamt = lv_withamt + wa_item-item_amount1.
+          CLEAR : lv_gamount,lv_taxtot.
+
+          APPEND wa_item TO it_item.
+          CLEAR : wa_item,wa_ekbe.
+        ENDLOOP.
+        CLEAR : line.
+*Ended on 24.11.2023
+
+*****WH Taxes*****
+        CLEAR : lt_lfbw.
+        SELECT * FROM lfbw INTO TABLE lt_lfbw WHERE lifnr = wa_ekko-lifnr
+                                                AND bukrs = wa_head-comp_code
+                                                AND wt_subjct NE ' '
+                                                AND wt_withcd NE ' '.
+        IF lt_lfbw IS NOT INITIAL.
+          SELECT * FROM t059p INTO TABLE lt_t059p WHERE land1 = 'IN'.
+*                                                AND wt_postm = '1'.
+        ENDIF.
+        CLEAR : line1.
+        CLEAR : it_with,wa_with.
+        LOOP AT lt_lfbw INTO wa_lfbw.
+          CLEAR : wa_t059p.
+          READ TABLE lt_t059p INTO wa_t059p WITH KEY witht = wa_lfbw-witht.
+          IF sy-subrc = 0.
+            line1 = line1 + '000001'.
+            wa_with-split_key = line1.
+            wa_with-wi_tax_type = wa_lfbw-witht.
+            wa_with-wi_tax_code = wa_lfbw-wt_withcd.
+            IF wa_lfbw-witht EQ 'QI'.
+              wa_with-wi_tax_base = lv_withamt.
+              APPEND wa_with TO it_with.
+            ELSEIF wa_lfbw-witht NE 'QI'.
+              wa_with-wi_tax_base = ' '.
+              APPEND wa_with TO it_with.
+            ENDIF.
+*              append wa_with to it_with.
+          ENDIF.
+        ENDLOOP.
+*****WH Taxes*****
+
+        APPEND wa_head TO it_head.
+*      APPEND wa_item TO it_item.
+
+      ENDLOOP.
+      CLEAR wa_disp.
+      REFRESH it_return.
+      IF NOT wa_head IS INITIAL AND NOT it_item IS INITIAL.
+        CALL FUNCTION 'BAPI_INCOMINGINVOICE_PARK'
+          EXPORTING
+            headerdata       = wa_head
+          IMPORTING
+            invoicedocnumber = wa_disp-invoicedocnumber
+            fiscalyear       = wa_disp-fiscalyear
+          TABLES
+            itemdata         = it_item
+            withtaxdata      = it_with
+            return           = it_return.
+        READ TABLE it_return TRANSPORTING NO FIELDS
+                   WITH KEY type ='E'.
+        IF sy-subrc EQ 0.
+          ROLLBACK WORK.
+        ELSE.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              wait = 'X'.
+
+          APPEND wa_disp TO it_disp.
+        ENDIF.
+      ENDIF.
+      CLEAR : wa_mkpf,wa_mseg,wa_ekko,wa_head,wa_item,wa_disp,wa_with,
+      wa_item,wa_ekpo,wa_ekbe,wa_item,wa_head,wa_ekbe,lv_taxtot.
+    ENDIF.
+  ELSE.
+*******PO based********
+    PERFORM po.
+    CALL SCREEN 100.
+    IF 1 = 2.
+      DATA ls_return TYPE bapiret2.
+*    DATA lt_return TYPE TABLE OF bapiret2.
+      REFRESH : lt_return,
+                it_disp,
+                it_head,
+                it_item,
+                it_with.
+      SELECT SINGLE bwkey FROM t001k INTO @DATA(lv_bwkey) WHERE bukrs = @p_bukrs.
+
+*    SELECT * FROM ekpo INTO @DATA(ls_ekpo) WHERE ebeln = @p_ebeln
+      SELECT * FROM ekpo INTO TABLE @DATA(lt_ekpo) WHERE ebeln = @p_ebeln
+                                               AND ebelp IN @p_ebelp[]
+                                               AND bukrs = @p_bukrs.
+      "                                      and loekz = ' '.
+      IF sy-subrc = 0.
+        READ TABLE lt_ekpo INTO DATA(ls_ekpo1) INDEX 1.
+        SELECT SINGLE * FROM ekko INTO  @DATA(ls_ekko) WHERE ebeln = @p_ebeln
+                                                         AND bsart IN ('ZTPO', 'ZNRO').
+        IF sy-subrc NE '0'.
+          lv_msg = 'Please provide the PO number of PO Type ZTPO or ZNRO only'.
+          MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+          LEAVE LIST-PROCESSING.
+        ENDIF.
+        SELECT SINGLE j_1bbranch FROM t001w INTO @DATA(lv_j_1bbranch) WHERE werks = @ls_ekpo1-werks
+                                                                        AND bwkey = @lv_bwkey.
+      ELSE.
+        MESSAGE 'PO item is under locked/deleted' TYPE 'S' DISPLAY LIKE 'E'.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+      DATA lv_menge TYPE menge_d.
+      CLEAR lv_menge.
+      LOOP AT lt_ekpo INTO DATA(ls_ekpo).
+        CLEAR lv_menge.
+        IF NOT ls_ekpo-loekz IS INITIAL.
+          CLEAR wa_disp.
+          wa_disp-ebeln = ls_ekpo-ebeln.
+          wa_disp-ebelp = ls_ekpo-ebelp.
+          wa_disp-msg = 'PO item is under locked/deleted'.
+          APPEND wa_disp TO it_disp.
+          CONTINUE.
+        ENDIF.
+        SELECT  * FROM ekbe INTO TABLE @DATA(lt_ekbe)
+                            WHERE ebeln = @ls_ekpo-ebeln
+                            AND ebelp = @ls_ekpo-ebelp
+                            AND bewtp = 'Q'.
+        READ TABLE lt_ekbe INTO DATA(ls_ekbe) INDEX 1.
+        DATA lt_rbkp_d TYPE TABLE OF rbkp.
+        IF NOT lt_ekbe IS INITIAL.
+          REFRESH lt_rbkp_d.
+          SELECT  * FROM rbkp
+                          INTO TABLE lt_rbkp_d
+                          FOR ALL ENTRIES IN lt_ekbe
+                          WHERE belnr = lt_ekbe-belnr
+                          AND gjahr = lt_ekbe-gjahr
+                          AND stblg = space
+                          AND xrech = 'X'
+                          AND bukrs = ls_ekko-bukrs.
+          IF sy-subrc = 0.
+            LOOP AT lt_rbkp_d INTO DATA(ls_rbkp1).
+              READ TABLE lt_ekbe INTO DATA(ls_ekbe_q)
+                   WITH KEY belnr = ls_rbkp1-belnr
+                            gjahr = ls_rbkp1-gjahr.
+              IF sy-subrc EQ 0.
+                lv_menge = lv_menge + ls_ekbe_q-menge.
+              ENDIF.
+            ENDLOOP.
+            IF 1 = 2.
+              SORT lt_rbkp_d BY gjahr DESCENDING belnr DESCENDING .
+              READ TABLE lt_rbkp_d  INTO DATA(ls_rbkp) INDEX 1.
+              IF sy-subrc EQ 0.
+                CLEAR ls_return.
+                CONCATENATE 'Invoice is already posted MIRO' ls_rbkp-belnr
+                 ls_rbkp-gjahr 'for' ls_ekbe-ebeln ls_ekbe-ebelp
+                  '. You cannot park invoice for PO'
+                  INTO lv_msg SEPARATED BY space.
+                CLEAR wa_disp.
+                wa_disp-ebeln = ls_ekpo-ebeln.
+                wa_disp-ebelp = ls_ekpo-ebelp.
+                wa_disp-msg = lv_msg.
+                APPEND wa_disp TO it_disp.
+                CONTINUE.
+*            MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+*            LEAVE LIST-PROCESSING.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+
+        SELECT SINGLE ebeln, ebelp, SUM( menge ) AS menge FROM ekbe
+               INTO @DATA(ls_ekbe1) WHERE ebeln = @ls_ekpo-ebeln
+               AND ebelp = @ls_ekpo-ebelp
+               AND bewtp = 'T'
+               GROUP BY ebeln, ebelp.
+        IF sy-subrc EQ 0.
+          lv_menge = lv_menge + ls_ekbe1-menge.
+          IF 1 = 2.
+*          SELECT SINGLE * FROM rbkp INTO @DATA(ls_rbkp1) WHERE belnr = @ls_ekbe1-belnr
+*                                                          AND gjahr = @ls_ekbe1-gjahr
+*                                                          AND rbstat = 'A'
+*                                                          AND bukrs = @ls_ekko-bukrs.
+          ENDIF.
+
+        ENDIF.
+
+        IF  lv_menge GE ls_ekpo-menge .
+          CLEAR ls_return.
+          CONCATENATE 'MIRO Invoice(s) already parked/posted'
+*            ls_rbkp1-belnr  ls_rbkp1-gjahr 'for' ls_ekbe1-ebeln ls_ekbe1-ebelp
+            'for' ls_ekpo-ebeln ls_ekpo-ebelp
+                 INTO lv_msg1 SEPARATED BY space.
+          CLEAR wa_disp.
+          wa_disp-ebeln = ls_ekpo-ebeln.
+          wa_disp-ebelp = ls_ekpo-ebelp.
+          wa_disp-msg = lv_msg1.
+          APPEND wa_disp TO it_disp.
+          CONTINUE.
+        ELSE.
+          IF NOT lv_menge IS INITIAL.
+            lv_menge = ls_ekpo-menge - lv_menge.
+          ENDIF.
+        ENDIF.
+        IF lv_menge IS INITIAL.
+          lv_menge =  ls_ekpo-menge.
+        ENDIF.
+        IF NOT p_menge IS INITIAL.
+          IF p_menge GT lv_menge.
+            CLEAR wa_disp.
+            wa_disp-ebeln = ls_ekpo-ebeln.
+            wa_disp-ebelp = ls_ekpo-ebelp.
+            wa_disp-msg = 'Could not process due to more quantity'.
+            APPEND wa_disp TO it_disp.
+            CONTINUE.
+          ELSE.
+            lv_menge = p_menge.
+          ENDIF.
+        ENDIF.
+*      CLEAR wa_head.
+        wa_head-invoice_ind = 'X'.
+        wa_head-doc_date = ls_ekko-bedat.
+        wa_head-pstng_date  = sy-datum.
+        wa_head-ref_doc_no = ls_ekpo-ebeln."ls_ekko-ebeln.
+        wa_head-comp_code = ls_ekko-bukrs.
+        wa_head-currency = 'INR'. "ls_ekko-waers.
+        wa_head-gross_amount = ' '.
+        wa_head-pmnttrms = ls_ekko-zterm.
+        wa_head-bline_date = ls_ekko-bedat.
+        wa_head-header_txt = 'Header Text'.
+        wa_head-business_place = lv_j_1bbranch.
+        wa_head-calc_tax_ind = 'X'.
+        wa_head-item_text = ls_ekpo-ebeln.
+        wa_head-alloc_nmbr = 'Assignment'.
+
+        CLEAR wa_item.
+        line = line + '00001'.
+        wa_item-invoice_doc_item = line.
+        wa_item-po_number = ls_ekpo-ebeln.
+        wa_item-po_item = ls_ekpo-ebelp.
+        wa_item-tax_code = ls_ekpo-mwskz.
+
+*      IF NOT ls_ekpo-matnr IS INITIAL.
+*        lv_withamt = lv_withamt + ls_ekpo-netwr.
+*      ENDIF.
+
+        wa_item-item_amount = lv_menge * ls_ekpo-netpr.
+*      wa_item-item_amount = ls_ekpo-netwr.
+*      wa_item-quantity = ls_ekpo-menge.
+
+        IF NOT ls_ekpo-matnr IS INITIAL.
+          lv_withamt = lv_withamt + wa_item-item_amount.
+        ENDIF.
+
+        wa_item-quantity = lv_menge.
+        wa_item-po_unit = ls_ekpo-meins.
+
+        IF wa_item-tax_code IS NOT INITIAL.
+          CLEAR : lw_taxcom, lt_gst.
+          lw_taxcom-bukrs = wa_head-comp_code.
+          lw_taxcom-budat = wa_head-pstng_date.
+          lw_taxcom-waers = wa_head-currency.
+          lw_taxcom-kposn = wa_item-po_item.
+          lw_taxcom-mwskz = wa_item-tax_code.
+          lw_taxcom-wrbtr = wa_item-item_amount.
+          lw_taxcom-lifnr = ls_ekko-lifnr.
+          IF ls_ekpo-matnr IS NOT INITIAL.
+            lw_taxcom-matnr = ls_ekpo-matnr.
+            lw_taxcom-werks = ls_ekpo-werks.
+          ELSEIF ls_ekpo-matnr IS INITIAL.
+            lw_taxcom-ebeln = ls_ekpo-ebeln.
+            lw_taxcom-ebelp = ls_ekpo-ebelp.
+          ENDIF.
+          CALL FUNCTION 'CALCULATE_TAX_ITEM'
+            EXPORTING
+              i_taxcom = lw_taxcom
+            TABLES
+              t_xkomv  = lt_gst.
+          IF sy-subrc <> 0.
+*       Implement suit able error handling here
+          ENDIF.
+          CLEAR : lw_gst.
+          LOOP AT lt_gst INTO lw_gst WHERE kbetr NE ' ' AND kschl NE 'JITC'.
+            CLEAR : lv_tax.
+            lv_tax = ( lw_gst-kawrt * lw_gst-kbetr ) / 1000.
+            lv_taxtot = lv_taxtot + lv_tax.
+            CLEAR : lw_gst.
+          ENDLOOP.
+        ENDIF.
+        lv_gamount = wa_item-item_amount + lv_taxtot.
+        wa_head-gross_amount = wa_head-gross_amount + lv_gamount.
+*      lv_withamt = lv_withamt + wa_item-item_amount.
+        CLEAR : lv_gamount,lv_taxtot.
+*      CLEAR : line.
+*Ended on 24.11.2023
+        IF it_head IS INITIAL.
+          APPEND wa_head TO it_head.
+        ENDIF.
+        IF NOT wa_item IS INITIAL.
+          APPEND wa_item TO it_item.
+        ENDIF.
+
+      ENDLOOP.
+*****WH Taxes*****
+      CLEAR : lt_lfbw.
+      "  lv_withamt.
+      SELECT * FROM lfbw INTO TABLE lt_lfbw WHERE lifnr = ls_ekko-lifnr
+                                              AND bukrs = wa_head-comp_code
+                                              AND wt_subjct NE ' '
+                                              AND wt_withcd NE ' '.
+      IF lt_lfbw IS NOT INITIAL.
+        SELECT * FROM t059p INTO TABLE lt_t059p WHERE land1 = 'IN'.
+*                                              AND wt_postm = '1'.
+      ENDIF.
+      CLEAR : line1.
+      CLEAR : it_with,wa_with.
+      LOOP AT lt_lfbw INTO wa_lfbw.
+        CLEAR : wa_t059p.
+        READ TABLE lt_t059p INTO wa_t059p WITH KEY witht = wa_lfbw-witht.
+        IF sy-subrc = 0.
+          line1 = line1 + '000001'.
+          wa_with-split_key = line1.
+          wa_with-wi_tax_type = wa_lfbw-witht.
+          wa_with-wi_tax_code = wa_lfbw-wt_withcd.
+          IF wa_lfbw-witht EQ 'QI'.
+            wa_with-wi_tax_base = lv_withamt.
+            APPEND wa_with TO it_with.
+          ELSE.
+            wa_with-wi_tax_base = ' '.
+            APPEND wa_with TO it_with.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+*****WH Taxes*****
+*    IF NOT wa_head IS INITIAL.
+*      APPEND wa_head TO it_head.
+*    ENDIF.
+*    IF NOT wa_item IS INITIAL.
+*      APPEND wa_item TO it_item.
+*    ENDIF.
+
+      IF it_head IS NOT INITIAL AND it_item IS NOT INITIAL.
+        REFRESH it_return.
+        CALL FUNCTION 'BAPI_INCOMINGINVOICE_PARK'
+          EXPORTING
+            headerdata       = wa_head
+          IMPORTING
+            invoicedocnumber = wa_disp-invoicedocnumber
+            fiscalyear       = wa_disp-fiscalyear
+          TABLES
+            itemdata         = it_item
+            withtaxdata      = it_with
+            return           = it_return.
+        READ TABLE it_return INTO ls_return
+             WITH KEY type ='E'.
+        IF sy-subrc EQ 0.
+          APPEND LINES OF it_return TO lt_return.
+          LOOP AT it_item INTO wa_item.
+            wa_disp-ebeln = wa_item-po_number.
+            wa_disp-ebelp = wa_item-po_item.
+            wa_disp-msg = ls_return-message.
+            APPEND wa_disp TO it_disp.
+            CLEAR wa_disp.
+          ENDLOOP.
+          ROLLBACK WORK.
+        ELSE.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              wait = 'X'.
+          REFRESH it_ekbe.
+          SELECT * FROM ekbe
+                   INTO TABLE it_ekbe
+                   WHERE belnr = wa_disp-invoicedocnumber AND
+                         gjahr = wa_disp-fiscalyear.
+          IF sy-subrc EQ 0.
+            LOOP AT it_ekbe INTO wa_ekbe.
+
+              wa_disp-ebeln = wa_ekbe-ebeln.
+              wa_disp-ebelp = wa_ekbe-ebelp.
+              wa_disp-menge = wa_ekbe-menge.
+
+              CLEAR wa_disp-msg.
+              APPEND wa_disp TO it_disp.
+            ENDLOOP.
+          ENDIF.
+*        APPEND wa_disp TO it_disp.
+        ENDIF.
+        CLEAR : wa_disp,wa_item,it_item,it_head,wa_head,wa_with,
+        lv_bwkey,ls_ekko,ls_ekpo,lt_ekbe,ls_ekbe1,ls_ekbe,
+*      ls_rbkp1,
+        ls_rbkp,lv_msg,lv_msg1,lv_j_1bbranch.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+  IF it_return IS NOT INITIAL AND 1 = 2.
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+*       I_INTERFACE_CHECK  = ' '
+*       I_BYPASSING_BUFFER = ' '
+*       I_BUFFER_ACTIVE    = ' '
+        i_callback_program = sy-repid
+*       I_CALLBACK_PF_STATUS_SET          = ' '
+*       I_CALLBACK_USER_COMMAND           = ' '
+*       I_CALLBACK_TOP_OF_PAGE            = ' '
+*       I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*       I_CALLBACK_HTML_END_OF_LIST       = ' '
+        i_structure_name   = 'BAPIRET2'
+*       I_BACKGROUND_ID    = ' '
+*       I_GRID_TITLE       =
+*       I_GRID_SETTINGS    =
+*       IS_LAYOUT          =
+*       IT_FIELDCAT                       =BU
+*       IT_EXCLUDING       =
+*       IT_SPECIAL_GROUPS  =
+*       IT_SORT            =
+*       IT_FILTER          =
+*       IS_SEL_HIDE        =
+*       I_DEFAULT          = 'X'
+*       I_SAVE             = ' '
+*       IS_VARIANT         =
+*       IT_EVENTS          =
+*       IT_EVENT_EXIT      =
+*       IS_PRINT           =
+*       IS_REPREP_ID       =
+*       I_SCREEN_START_COLUMN             = 0
+*       I_SCREEN_START_LINE               = 0
+*       I_SCREEN_END_COLUMN               = 0
+*       I_SCREEN_END_LINE  = 0
+*       I_HTML_HEIGHT_TOP  = 0
+*       I_HTML_HEIGHT_END  = 0
+*       IT_ALV_GRAPHICS    =
+*       IT_HYPERLINK       =
+*       IT_ADD_FIELDCAT    =
+*       IT_EXCEPT_QINFO    =
+*       IR_SALV_FULLSCREEN_ADAPTER        =
+*     IMPORTING
+*       E_EXIT_CAUSED_BY_CALLER           =
+*       ES_EXIT_CAUSED_BY_USER            =
+      TABLES
+        t_outtab           = it_return
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ENDIF.
+
+  IF it_disp IS NOT INITIAL AND NOT r_grn IS INITIAL.
+    CLEAR lv_pos.
+    gw_fieldcat-col_pos = lv_pos  + 1.
+    gw_fieldcat-fieldname = 'EBELN'.
+    gw_fieldcat-seltext_l = 'PO No'.
+    APPEND gw_fieldcat TO gt_fieldcat.
+    CLEAR  gw_fieldcat.
+
+    gw_fieldcat-col_pos = lv_pos  + 1.
+    gw_fieldcat-fieldname = 'EBELP'.
+    gw_fieldcat-seltext_l = 'PO Item'."'INVOICE DOC NUMBER'.
+    APPEND gw_fieldcat TO gt_fieldcat.
+    CLEAR  gw_fieldcat.
+
+    gw_fieldcat-col_pos = lv_pos + 1.
+    gw_fieldcat-fieldname = 'MENGE'.
+    gw_fieldcat-seltext_l = 'Qty'.
+    APPEND gw_fieldcat TO gt_fieldcat.
+    CLEAR  gw_fieldcat.
+
+
+    gw_fieldcat-col_pos = lv_pos + 1.
+    gw_fieldcat-fieldname = 'INVOICEDOCNUMBER'.
+    gw_fieldcat-seltext_l = 'INVOICE DOC NUMBER'.
+    APPEND gw_fieldcat TO gt_fieldcat.
+    CLEAR  gw_fieldcat.
+
+    gw_fieldcat-col_pos = lv_pos + 1.
+    gw_fieldcat-fieldname = 'FISCALYEAR'.
+    gw_fieldcat-seltext_l = 'FISCAL YEAR'.
+    APPEND gw_fieldcat TO gt_fieldcat.
+    CLEAR  gw_fieldcat.
+
+    gw_fieldcat-col_pos = lv_pos + 1.
+    gw_fieldcat-fieldname = 'MSG'.
+    gw_fieldcat-seltext_l = 'Message'.
+    APPEND gw_fieldcat TO gt_fieldcat.
+    CLEAR  gw_fieldcat.
+
+    gw_layout-colwidth_optimize = 'X'.
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_callback_program = sy-repid
+        is_layout          = gw_layout
+        it_fieldcat        = gt_fieldcat[]
+*       i_default          = 'X'
+*       i_save             = 'X'
+      TABLES
+        t_outtab           = it_disp
+      EXCEPTIONS
+        program_error      = 1
+        OTHERS             = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ENDIF.
+
+*  PERFORM display_data.
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validation .
+  IF NOT r_grn IS INITIAL .
+    IF p_bukrs IS INITIAL.
+      MESSAGE 'Please enter Company Code' TYPE  'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ELSEIF p_mblnr[] IS INITIAL.
+      MESSAGE 'Please enter GRN' TYPE  'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ELSEIF p_mjahr IS INITIAL.
+      MESSAGE 'Please enter Year' TYPE  'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+
+  ELSEIF NOT r_po IS INITIAL.
+    IF p_bukrs IS INITIAL.
+      MESSAGE 'Please enter Company Code' TYPE  'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ELSEIF p_ebeln IS INITIAL .
+      MESSAGE 'Please enter PO' TYPE  'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+*    ELSEIF p_ebelp IS INITIAL .
+*      MESSAGE 'Please enter PO Item' TYPE  'S' DISPLAY LIKE 'E'.
+*      LEAVE LIST-PROCESSING.
+    ENDIF.
+    IF NOT p_ebeln IS INITIAL AND
+       NOT p_ebelp IS INITIAL ."AND
+      DATA lv_cnt TYPE i.
+      CLEAR lv_cnt.
+      DELETE p_ebelp[] WHERE low IS INITIAL.
+      DESCRIBE TABLE p_ebelp[] LINES lv_cnt.
+      IF lv_cnt = 1.
+        READ TABLE p_ebelp INDEX  1.
+      ENDIF.
+      IF NOT p_menge IS INITIAL AND lv_cnt = 1 AND NOT p_ebelp-high IS INITIAL.
+        MESSAGE 'Quantity should be blank for multiple PO items' TYPE  'S' DISPLAY LIKE 'E'.
+        LEAVE LIST-PROCESSING.
+      ELSEIF NOT p_menge IS INITIAL AND lv_cnt > 1.
+        MESSAGE 'Quantity should be blank for multiple PO items' TYPE  'S' DISPLAY LIKE 'E'.
+        LEAVE LIST-PROCESSING.
+      ENDIF.
+    ENDIF.
+    IF NOT p_menge IS INITIAL AND
+   p_ebelp[] IS INITIAL AND NOT p_ebeln IS INITIAL.
+      MESSAGE 'Please maintain single PO item where quantity is maintained' TYPE  'S' DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_PO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_po .
+  IF NOT p_ebeln IS INITIAL AND NOT r_po IS INITIAL.
+    SELECT SINGLE ebeln INTO @DATA(lv_ebeln)
+           FROM ekko
+           WHERE ebeln = @p_ebeln.
+    IF sy-subrc NE 0.
+      MESSAGE 'PO does not exist' TYPE 'E'.
+    ELSE.
+      SELECT SINGLE ebeln INTO @lv_ebeln
+          FROM ekpo
+          WHERE ebeln = @p_ebeln AND
+                ebelp IN @p_ebelp[] .
+
+      IF sy-subrc NE 0.
+        MESSAGE 'PO does not exist' TYPE 'E'.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  VALIDATE_GRN
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM validate_grn .
+  IF NOT r_grn IS INITIAL.
+    IF NOT p_mblnr[] IS INITIAL.
+      MESSAGE 'GRN should not be blank' TYPE 'E'.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GRN
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM grn .
+*  perform
+  SELECT * FROM mkpf INTO TABLE it_mkpf WHERE mblnr IN p_mblnr[]
+                                            AND mjahr EQ p_mjahr.
+  IF sy-subrc NE 0.
+    MESSAGE 'No Data Found of GRN and Year' TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  IF it_mkpf IS NOT INITIAL.
+    SELECT * FROM mseg INTO TABLE it_mseg FOR ALL ENTRIES IN it_mkpf
+                                          WHERE mblnr EQ it_mkpf-mblnr
+                                            AND mjahr EQ it_mkpf-mjahr.
+*                                            AND bukrs EQ p_bukrs.
+    IF sy-subrc NE 0.
+*      MESSAGE 'No Data Found of Company code, GRN and Year' TYPE 'S'
+*              DISPLAY LIKE 'E'.
+*      LEAVE LIST-PROCESSING.
+    ENDIF.
+    IF NOT it_mseg IS INITIAL.
+*      DELETE it_mseg WHERE bwart NE '101'.
+      IF it_mseg IS INITIAL.
+*        MESSAGE 'Please give GRN with movement type 101 only' TYPE 'S'
+*             DISPLAY LIKE 'E'.
+*        LEAVE LIST-PROCESSING.
+      ELSE.
+        SELECT * FROM ekko INTO TABLE it_ekko1
+                 FOR ALL ENTRIES IN it_mseg
+                 WHERE ebeln = it_mseg-ebeln.
+
+        SELECT * FROM qals INTO TABLE it_qals
+                 FOR ALL ENTRIES IN it_mkpf
+                 WHERE mblnr EQ it_mkpf-mblnr
+                 AND mjahr EQ it_mkpf-mjahr.
+*                 AND stat35 NE 'X'.
+        DATA it_ekbe_g TYPE TABLE OF ekbe.
+        DATA wa_ekbe_g TYPE ekbe.
+        SELECT * FROM ekbe INTO TABLE it_ekbe_g
+                 FOR ALL ENTRIES IN it_mkpf
+               WHERE lfbnr EQ it_mkpf-mblnr
+                 AND lfgja EQ it_mkpf-mjahr
+                 AND bewtp EQ 'Q'.
+        IF sy-subrc EQ 0.
+          DATA lt_rbkp_g TYPE TABLE OF rbkp.
+          SELECT * FROM rbkp INTO TABLE lt_rbkp_g
+                 FOR ALL ENTRIES IN it_ekbe_g
+                 WHERE belnr = it_ekbe_g-belnr
+                 AND gjahr = it_ekbe_g-gjahr
+                 AND stblg EQ space.
+          IF NOT lt_rbkp_g IS INITIAL.
+            TYPES : BEGIN OF lty_rbkp_aw,
+                      belnr TYPE belnr_d,
+                      gjahr TYPE gjahr,
+                      awkey TYPE awkey,
+                    END OF lty_rbkp_aw.
+            DATA lt_rbkp_aw TYPE TABLE OF lty_rbkp_aw.
+            DATA wa_rbkp_aw TYPE lty_rbkp_aw.
+            LOOP AT lt_rbkp_g INTO wa_rbkp.
+              wa_rbkp_aw-belnr = wa_rbkp-belnr.
+              wa_rbkp_aw-gjahr = wa_rbkp-gjahr.
+              wa_rbkp_aw-awkey = |{ wa_rbkp-belnr }{ wa_rbkp-gjahr }|.
+              APPEND wa_rbkp_aw TO lt_rbkp_aw.
+            ENDLOOP.
+            IF NOT lt_rbkp_aw IS INITIAL.
+              DATA it_bkpf_g TYPE TABLE OF bkpf.
+              SELECT * FROM bkpf INTO TABLE it_bkpf_g
+                       FOR ALL ENTRIES IN lt_rbkp_aw
+                       WHERE  bukrs = p_bukrs
+                         AND  awkey = lt_rbkp_aw-awkey.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    "service bsed GRN Start- select statements..
+    DATA it_ekbe_s TYPE TABLE OF ekbe.
+    DATA wa_ekbe_s TYPE ekbe.
+
+    SELECT * FROM ekbe INTO TABLE it_ekbe
+         FOR ALL ENTRIES IN it_mkpf
+         WHERE belnr EQ it_mkpf-mblnr
+         AND gjahr EQ it_mkpf-mjahr
+         AND lfbnr NE it_mkpf-mblnr
+         AND bewtp EQ 'E'
+         AND bwart EQ '101'.
+    SELECT * FROM ekbe INTO TABLE it_ekbe_s
+             FOR ALL ENTRIES IN it_mkpf
+             WHERE belnr EQ it_mkpf-mblnr
+             AND gjahr EQ it_mkpf-mjahr
+             AND lfbnr NE it_mkpf-mblnr
+             AND bewtp EQ 'E'
+             AND bwart EQ '101'.
+    IF sy-subrc EQ 0.
+      DATA it_ekko_s TYPE TABLE OF ekko.
+      DATA wa_ekko_s TYPE ekko.
+
+      SELECT * FROM ekko INTO TABLE it_ekko
+         FOR ALL ENTRIES IN it_ekbe_s
+         WHERE ebeln EQ it_ekbe_s-ebeln
+           AND bukrs EQ p_bukrs
+           AND waers EQ 'INR'.
+
+
+      SELECT * FROM ekko INTO TABLE it_ekko_s
+               FOR ALL ENTRIES IN it_ekbe_s
+               WHERE ebeln EQ it_ekbe_s-ebeln
+                 AND bukrs EQ p_bukrs.
+*                 AND waers EQ 'INR'.
+
+      DATA it_ekpo_s TYPE TABLE OF ekpo.
+      DATA wa_ekpo_s TYPE ekpo.
+
+      SELECT * FROM ekpo INTO TABLE it_ekpo
+               FOR ALL ENTRIES IN it_ekbe_s
+               WHERE ebeln EQ it_ekbe_s-ebeln.
+
+
+      SELECT * FROM ekpo INTO TABLE it_ekpo_s
+               FOR ALL ENTRIES IN it_ekbe_s
+               WHERE ebeln EQ it_ekbe_s-ebeln.
+
+      DATA it_ekbe_tq_s TYPE TABLE OF ekbe.
+      DATA wa_ekbe_tq_s TYPE ekbe.
+      SELECT * FROM ekbe INTO TABLE it_ekbe_tq_s
+               FOR ALL ENTRIES IN it_ekbe_s
+               WHERE lfbnr EQ it_ekbe_s-lfbnr
+               AND lfgja EQ it_ekbe_s-lfgja
+               AND bewtp IN ('T', 'Q').
+      IF sy-subrc EQ 0.
+        DATA it_ekbe_q_s TYPE TABLE OF ekbe.
+        DATA wa_ekbe_q_s TYPE ekbe.
+        it_ekbe_q_s = it_ekbe_tq_s.
+        DELETE it_ekbe_q_s WHERE NOT bewtp EQ 'Q'.
+        IF NOT it_ekbe_q_s IS INITIAL.
+          DATA it_rbkp_s TYPE TABLE OF rbkp.
+          DATA wa_rbkp_s TYPE rbkp.
+          SELECT * FROM rbkp INTO TABLE it_rbkp_s
+                              FOR ALL ENTRIES IN it_ekbe_q_s
+                              WHERE belnr = it_ekbe_q_s-belnr
+                              AND gjahr = it_ekbe_q_s-gjahr
+                              AND stblg EQ space
+                              AND xrech EQ 'X'.
+          IF NOT it_rbkp_s IS INITIAL.
+            SORT it_rbkp_s BY gjahr DESCENDING belnr DESCENDING.
+            DELETE ADJACENT DUPLICATES FROM it_rbkp_s
+                   COMPARING belnr gjahr.
+            TYPES : BEGIN OF lty_rbkp_aw_s,
+                      belnr TYPE belnr_d,
+                      gjahr TYPE gjahr,
+                      awkey TYPE awkey,
+                    END OF lty_rbkp_aw_s.
+            DATA it_rbkp_aw_s TYPE TABLE OF lty_rbkp_aw.
+            DATA wa_rbkp_aw_s TYPE lty_rbkp_aw.
+            LOOP AT it_rbkp_s INTO wa_rbkp.
+              wa_rbkp_aw_s-belnr = wa_rbkp-belnr.
+              wa_rbkp_aw_s-gjahr = wa_rbkp-gjahr.
+              wa_rbkp_aw_s-awkey = |{ wa_rbkp-belnr }{ wa_rbkp-gjahr }|.
+              APPEND wa_rbkp_aw_s TO it_rbkp_aw_s.
+            ENDLOOP.
+            IF NOT it_rbkp_aw_s IS INITIAL.
+              DATA it_bkpf_s TYPE TABLE OF bkpf.
+              DATA wa_bkpf_s TYPE bkpf.
+              SELECT * FROM bkpf INTO TABLE it_bkpf_s
+                       FOR ALL ENTRIES IN it_rbkp_aw_s
+                       WHERE  bukrs = p_bukrs
+                         AND  awkey = it_rbkp_aw_s-awkey.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+    "service based grn end.
+
+    " Material based GRN start.
+    DATA it_ekbe_m TYPE TABLE OF ekbe.
+    DATA it_ekbe_m_t TYPE TABLE OF ekbe.
+    DATA wa_ekbe_m_t TYPE ekbe.
+    DATA wa_ekbe_m TYPE ekbe.
+    SELECT * FROM ekbe APPENDING TABLE it_ekbe
+             FOR ALL ENTRIES IN it_mkpf
+             WHERE belnr = it_mkpf-mblnr
+             AND gjahr = it_mkpf-mjahr
+             AND lfbnr = it_mkpf-mblnr
+             AND bewtp EQ 'E'
+             AND bwart EQ '101'.
+
+    SELECT * FROM ekbe INTO TABLE it_ekbe_m
+             FOR ALL ENTRIES IN it_mkpf
+             WHERE belnr = it_mkpf-mblnr
+             AND gjahr = it_mkpf-mjahr
+             AND lfbnr = it_mkpf-mblnr
+             AND bewtp EQ 'E'
+             AND bwart EQ '101'.
+    IF sy-subrc EQ 0.
+      SELECT * FROM ekbe INTO TABLE it_ekbe_m_t
+               FOR ALL ENTRIES IN it_mkpf
+               WHERE lfbnr = it_mkpf-mblnr
+               AND lfgja = it_mkpf-mjahr
+               AND bewtp EQ 'T'.
+
+      DATA it_ekko_m TYPE TABLE OF ekko.
+      DATA wa_ekko_m TYPE ekko.
+
+      SELECT * FROM ekko APPENDING TABLE it_ekko
+               FOR ALL ENTRIES IN it_ekbe_m
+               WHERE ebeln EQ it_ekbe_m-ebeln
+                     AND bukrs EQ p_bukrs
+                     AND waers EQ 'INR'.
+      SELECT * FROM ekko INTO TABLE it_ekko_m
+               FOR ALL ENTRIES IN it_ekbe_m
+               WHERE ebeln EQ it_ekbe_m-ebeln
+                     AND bukrs EQ p_bukrs.
+*                     AND waers EQ 'INR'.
+      IF sy-subrc EQ 0.
+        DATA it_usr21_m TYPE TABLE OF usr21.
+        DATA wa_usr21_m TYPE usr21.
+        SELECT * FROM usr21
+                     INTO TABLE it_usr21
+                     FOR ALL ENTRIES IN it_ekko_m[]
+                     WHERE bname = it_ekko_m-ernam.
+        IF sy-subrc EQ 0.
+          DATA it_adrp_m TYPE TABLE OF adrp.
+          DATA wa_adrp_m TYPE adrp.
+          SELECT * FROM adrp
+                   INTO TABLE it_adrp
+                   FOR ALL ENTRIES IN it_usr21_m
+                   WHERE persnumber = it_usr21_m-persnumber.
+        ENDIF.
+      ENDIF.
+
+      DATA it_ekpo_m TYPE TABLE OF ekpo.
+      DATA wa_ekpo_m TYPE ekpo.
+
+      SELECT * FROM ekpo APPENDING TABLE it_ekpo FOR ALL ENTRIES IN it_ekbe_m
+                                            WHERE ebeln EQ it_ekbe_m-ebeln.
+      SELECT * FROM ekpo INTO TABLE it_ekpo_m FOR ALL ENTRIES IN it_ekbe_m
+                                            WHERE ebeln EQ it_ekbe_m-ebeln.
+
+      DATA it_t001w_m TYPE TABLE OF t001w.
+      DATA wa_t001w_m TYPE t001w.
+      SELECT * FROM t001w INTO TABLE it_t001w FOR ALL ENTRIES IN it_ekbe_m
+                                              WHERE werks EQ it_ekbe_m-werks.
+
+      DATA it_sec_m TYPE TABLE OF seccode.
+      DATA wa_sec_m TYPE seccode.
+      SELECT * FROM seccode INTO TABLE it_sec.
+    ENDIF.
+
+
+
+  ENDIF.
+
+*  it_mkpf_s = it_mkpf.
+  LOOP AT  it_mkpf INTO wa_mkpf.
+    " general validations
+    READ TABLE it_mseg INTO wa_mseg
+               WITH KEY mblnr = wa_mkpf-mblnr
+                        mjahr = wa_mkpf-mjahr
+                        bukrs = p_bukrs.
+    IF sy-subrc NE 0.
+      wa_disp-ebeln = wa_mkpf-mblnr.
+      wa_disp-msg = 'No Data Found of Company code, GRN and Year'.
+      APPEND wa_disp TO it_disp.
+      CONTINUE.
+    ELSE.
+      IF wa_mseg-bwart NE '101'.
+        wa_disp-ebeln = wa_mkpf-mblnr.
+        wa_disp-msg = 'Please give GRN with movement type 101 only'.
+        APPEND wa_disp TO it_disp.
+        CONTINUE.
+      ENDIF.
+
+      READ TABLE it_ekko1 INTO wa_ekko
+           WITH KEY ebeln = wa_mseg-ebeln
+                    bsart = 'ZUB'.
+*      IF sy-subrc NE 0.
+      IF sy-subrc EQ 0.
+        wa_disp-ebeln = wa_mkpf-mblnr.
+        wa_disp-msg = 'You cannot park invoice for PO Type ZUB'.
+        APPEND wa_disp TO it_disp.
+        CONTINUE.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE it_qals INTO wa_qals
+         WITH KEY mblnr = wa_mkpf-mblnr
+                  mjahr = wa_mkpf-mjahr.
+    IF sy-subrc EQ 0.
+      IF wa_qals-stat35 IS INITIAL.
+        wa_disp-ebeln = wa_mkpf-mblnr.
+        CONCATENATE 'Quality Inspection' wa_qals-prueflos
+                     'not done. You cannot park Invoice for GRN'
+                     wa_qals-mblnr wa_qals-mjahr INTO lv_msg SEPARATED BY space.
+        wa_disp-msg = lv_msg.
+        APPEND wa_disp TO it_disp.
+        CONTINUE.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE it_ekbe_g INTO wa_ekbe_g
+       WITH KEY lfbnr = wa_mkpf-mblnr
+         lfgja = wa_mkpf-mjahr
+         bewtp = 'Q'.
+    IF sy-subrc EQ 0.
+      READ TABLE lt_rbkp_g INTO wa_rbkp
+           WITH KEY belnr = wa_ekbe_g-belnr
+                    gjahr = wa_ekbe_g-gjahr.
+      IF sy-subrc EQ 0.
+        lv_awkey = |{ wa_rbkp-belnr }{ wa_rbkp-gjahr }|.
+        READ TABLE it_bkpf_g INTO wa_bkpf
+             WITH KEY bukrs = p_bukrs
+                      awkey = lv_awkey.
+        IF sy-subrc EQ 0.
+          CONCATENATE 'Invoice is already posted' 'MIRO'
+               wa_rbkp-belnr 'and' 'FI' wa_bkpf-belnr
+               '. You cannot park invoice for GRN'
+               INTO lv_msg SEPARATED BY space.
+          wa_disp-ebeln = wa_mkpf-mblnr.
+          wa_disp-msg = lv_msg.
+          APPEND wa_disp TO it_disp.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    " Service based GRN start
+    LOOP AT it_ekbe_s INTO wa_ekbe
+         WHERE belnr = wa_mkpf-mblnr AND
+                  gjahr = wa_mkpf-mjahr AND
+                  lfbnr NE wa_mkpf-mblnr .
+      EXIT.
+    ENDLOOP.
+    IF sy-subrc EQ 0.
+      READ TABLE it_ekko_s INTO wa_ekko_s
+           WITH KEY bukrs = p_bukrs
+                    ebeln = wa_ekbe_s-ebeln.
+      IF sy-subrc EQ 0.
+        IF wa_ekko-waers NE 'INR'.
+          wa_disp-ebeln = wa_mkpf-mblnr.
+          wa_disp-msg = 'Please select GRN with PO Currency INR only'.
+          APPEND wa_disp TO it_disp.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+
+      READ TABLE it_ekbe_tq_s INTO wa_ekbe_tq_s
+           WITH KEY lfbnr = wa_ekbe-lfbnr
+                    lfgja = wa_ekbe-lfgja
+                    bewtp = 'T'.
+      IF sy-subrc EQ 0.
+        CONCATENATE 'Invoice is already parked ' wa_ekbe_tq_s-belnr
+        INTO lv_msg SEPARATED BY '-'.
+        wa_disp-ebeln = wa_mkpf-mblnr.
+        wa_disp-msg = lv_msg.
+        APPEND wa_disp TO it_disp.
+        CONTINUE.
+      ENDIF.
+
+      READ TABLE it_ekbe_q_s INTO wa_ekbe_q_s
+           WITH KEY lfbnr = wa_ekbe-lfbnr
+                    lfgja = wa_ekbe-lfgja.
+      IF sy-subrc EQ 0.
+        READ TABLE it_rbkp_s INTO wa_rbkp_s
+             WITH KEY belnr = wa_ekbe_q_s-belnr
+                      gjahr = wa_ekbe_q_s-gjahr.
+        IF sy-subrc EQ 0.
+          CLEAR lv_awkey.
+          CONCATENATE wa_rbkp_s-belnr wa_rbkp_s-gjahr INTO lv_awkey.
+          READ TABLE it_bkpf_s INTO wa_bkpf_s
+               WITH KEY   bukrs = p_bukrs
+                          awkey = lv_awkey.
+          IF sy-subrc EQ 0.
+            CONCATENATE 'Invoice is already posted' 'MIRO'
+            wa_rbkp-belnr 'and' 'FI' wa_bkpf-belnr
+            '. You cannot park invoice for GRN' INTO lv_msg SEPARATED BY space.
+            wa_disp-ebeln = wa_mkpf-mblnr.
+            wa_disp-msg = lv_msg.
+            APPEND wa_disp TO it_disp.
+            CONTINUE.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+*   service based grn end.
+
+*   material based grn vlidation started
+    READ TABLE it_ekbe_m INTO wa_ekbe_m
+         WITH KEY belnr = wa_mkpf-mblnr
+                  gjahr = wa_mkpf-mjahr
+                  lfbnr = wa_mkpf-mblnr.
+    IF sy-subrc EQ 0.
+      READ TABLE it_ekbe_m_t INTO wa_ekbe_m_t
+           WITH KEY lfbnr = wa_mkpf-mblnr
+                    lfgja = wa_mkpf-mjahr.
+      IF sy-subrc EQ 0.
+        CONCATENATE 'Invoice is already parked ' ' - ' wa_ekbe_m_t-belnr INTO lv_msg.
+        wa_disp-ebeln = wa_mkpf-mblnr.
+        wa_disp-msg = lv_msg.
+        APPEND wa_disp TO it_disp.
+        CONTINUE.
+      ENDIF.
+
+      READ TABLE it_ekko_m INTO wa_ekko_m
+           WITH KEY ebeln = wa_ekbe_m-ebeln
+                    bukrs = p_bukrs.
+      IF sy-subrc EQ 0.
+        IF wa_ekko_m-waers NE 'INR'.
+          wa_disp-ebeln = wa_mkpf-mblnr.
+          wa_disp-msg = 'Please select GRN with PO Currency INR only'.
+          APPEND wa_disp TO it_disp.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+
+    " posting logic.
+    READ TABLE it_mseg INTO wa_mseg WITH KEY mblnr = wa_mkpf-mblnr
+                                               mjahr = wa_mkpf-mjahr.
+
+    IF sy-subrc EQ 0.
+      READ TABLE it_ekko INTO wa_ekko WITH KEY ebeln = wa_mseg-ebeln.
+    ENDIF.
+
+    CLEAR : v_date , n_date, m_date.
+    CONCATENATE wa_mkpf-bldat+6(2) wa_mkpf-bldat+4(2) wa_mkpf-bldat+0(4) INTO n_date.
+    CONCATENATE wa_mkpf-cpudt+6(2) wa_mkpf-cpudt+4(2) wa_mkpf-cpudt+0(4) INTO m_date.
+    CONCATENATE sy-datum+6(2) sy-datum+4(2) sy-datum+0(4) INTO v_date.
+
+    wa_head-invoice_ind = 'X'.
+    wa_head-doc_date = wa_mkpf-bldat.
+    wa_head-pstng_date  = wa_mkpf-budat."sy-datum.
+    wa_head-comp_code = wa_mseg-bukrs.
+    wa_head-currency = 'INR'.
+    wa_head-gross_amount = ' '.
+    wa_head-item_text = wa_mseg-ebeln.
+    wa_head-alloc_nmbr = wa_mkpf-xblnr. "'Assignment'
+    wa_head-pmnttrms = wa_ekko-zterm.
+    wa_head-bline_date = wa_mkpf-cpudt.
+*      wa_head-header_txt = wa_mkpf-bktxt.
+    wa_head-ref_doc_no = wa_mkpf-xblnr. "wa_mkpf-bktxt.
+    wa_head-business_place = 'MH01'.
+    wa_head-calc_tax_ind = 'X'.
+
+    READ TABLE it_ekko INTO wa_ekko
+         WITH KEY ebeln = wa_mseg-ebeln.
+    IF sy-subrc EQ 0.
+      READ TABLE it_usr21 INTO DATA(wa_usr21)
+           WITH KEY bname = wa_ekko-ernam.
+      IF sy-subrc EQ 0.
+        READ TABLE it_adrp INTO DATA(wa_adrp)
+             WITH KEY persnumber = wa_usr21-persnumber.
+        IF sy-subrc EQ 0.
+          wa_head-header_txt = wa_adrp-name_text.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    " Either Material based or Service based data
+    LOOP AT it_ekbe INTO wa_ekbe WHERE belnr EQ wa_mkpf-mblnr
+                                   AND gjahr EQ wa_mkpf-mjahr
+                                   AND bwart = '101'.
+
+      line = line + '00001'.
+      wa_item-invoice_doc_item = line.
+      wa_item-po_number = wa_ekbe-ebeln.
+      wa_item-po_item = wa_ekbe-ebelp.
+      IF wa_ekbe-lfbnr NE wa_mkpf-mblnr.
+        " Service Based
+        wa_item-sheet_no = wa_ekbe-lfbnr.
+        IF NOT wa_ekbe-lfpos IS INITIAL.
+          wa_item-sheet_item = wa_ekbe-lfpos * 10.
+        ELSEIF wa_ekbe-lfpos IS INITIAL.
+          wa_item-sheet_item = '0000000010'.
+        ENDIF.
+      ELSE.
+        "Material Based
+        wa_item-ref_doc = wa_ekbe-belnr.
+        wa_item-ref_doc_year  = wa_ekbe-gjahr.
+        wa_item-ref_doc_it = wa_ekbe-buzei.
+        lv_withamt = lv_withamt + wa_ekbe-dmbtr.
+      ENDIF.
+
+      wa_item-item_amount = wa_ekbe-dmbtr.
+      wa_item-quantity = wa_ekbe-menge.
+
+      READ TABLE it_ekpo INTO wa_ekpo WITH KEY ebeln = wa_ekbe-ebeln
+                                               ebelp = wa_ekbe-ebelp.
+      IF sy-subrc EQ 0.
+        IF NOT wa_ekpo-matnr IS INITIAL.
+          wa_item-po_unit = wa_ekpo-meins.
+        ELSE.
+          READ TABLE it_mseg INTO wa_mseg
+               WITH KEY mblnr = wa_ekbe-belnr
+                        mjahr = wa_ekbe-gjahr
+                        zeile = wa_ekbe-buzei.
+          IF sy-subrc EQ 0.
+            wa_item-po_unit = wa_mseg-erfme.
+          ENDIF.
+        ENDIF.
+        wa_item-tax_code = wa_ekpo-mwskz.
+      ENDIF.
+
+      IF wa_item-tax_code IS NOT INITIAL.
+        CLEAR : lw_taxcom, lt_gst.
+        lw_taxcom-bukrs = wa_head-comp_code.
+        lw_taxcom-budat = wa_head-pstng_date.
+        lw_taxcom-waers = wa_head-currency.
+        lw_taxcom-kposn = wa_item-po_item.
+        lw_taxcom-mwskz = wa_item-tax_code.
+        lw_taxcom-wrbtr = wa_item-item_amount.
+        lw_taxcom-lifnr = wa_ekko-lifnr.
+        IF wa_ekpo-matnr IS NOT INITIAL.
+          lw_taxcom-matnr = wa_ekpo-matnr.
+          lw_taxcom-werks = wa_ekpo-werks.
+        ELSEIF wa_ekpo-matnr IS INITIAL.
+          lw_taxcom-ebeln = wa_ekpo-ebeln.
+          lw_taxcom-ebelp = wa_ekpo-ebelp.
+        ENDIF.
+        CALL FUNCTION 'CALCULATE_TAX_ITEM'
+          EXPORTING
+            i_taxcom = lw_taxcom
+          TABLES
+            t_xkomv  = lt_gst.
+        IF sy-subrc <> 0.
+*                  Implement suit able error handling here
+        ENDIF.
+        CLEAR : lw_gst.
+        LOOP AT lt_gst INTO lw_gst WHERE kbetr NE ' ' AND kschl NE 'JITC'.
+          CLEAR : lv_tax.
+          lv_tax = ( lw_gst-kawrt * lw_gst-kbetr ) / 1000.
+          lv_taxtot = lv_taxtot + lv_tax.
+          CLEAR : lw_gst.
+        ENDLOOP.
+      ENDIF.
+      lv_gamount = wa_item-item_amount + lv_taxtot.
+      wa_head-gross_amount = wa_head-gross_amount + lv_gamount.
+*        lv_withamt = lv_withamt + wa_item-item_amount.
+*        lv_withamt = lv_withamt + wa_item-item_amount1.
+      CLEAR : lv_gamount,lv_taxtot.
+
+      APPEND wa_item TO it_item.
+      CLEAR : wa_item,wa_ekbe.
+    ENDLOOP.
+    CLEAR : line.
+
+*****WH Taxes*****
+    CLEAR : lt_lfbw.
+    SELECT * FROM lfbw INTO TABLE lt_lfbw WHERE lifnr = wa_ekko-lifnr
+                                            AND bukrs = wa_head-comp_code
+                                            AND wt_subjct NE ' '
+                                            AND wt_withcd NE ' '.
+    IF lt_lfbw IS NOT INITIAL.
+      SELECT * FROM t059p INTO TABLE lt_t059p WHERE land1 = 'IN'.
+*                                                AND wt_postm = '1'.
+    ENDIF.
+    CLEAR : line1.
+    CLEAR : it_with,wa_with.
+    LOOP AT lt_lfbw INTO wa_lfbw.
+      CLEAR : wa_t059p.
+      READ TABLE lt_t059p INTO wa_t059p WITH KEY witht = wa_lfbw-witht.
+      IF sy-subrc = 0.
+        line1 = line1 + '000001'.
+        wa_with-split_key = line1.
+        wa_with-wi_tax_type = wa_lfbw-witht.
+        wa_with-wi_tax_code = wa_lfbw-wt_withcd.
+        IF wa_lfbw-witht EQ 'QI'.
+          wa_with-wi_tax_base = lv_withamt.
+          APPEND wa_with TO it_with.
+        ELSEIF wa_lfbw-witht NE 'QI'.
+          wa_with-wi_tax_base = ' '.
+          APPEND wa_with TO it_with.
+        ENDIF.
+*              append wa_with to it_with.
+      ENDIF.
+    ENDLOOP.
+*****WH Taxes*****
+
+    APPEND wa_head TO it_head.
+*      APPEND wa_item TO it_item.
+
+    CLEAR wa_disp.
+    REFRESH it_return.
+    IF NOT wa_head IS INITIAL AND NOT it_item IS INITIAL.
+      CALL FUNCTION 'BAPI_INCOMINGINVOICE_PARK'
+        EXPORTING
+          headerdata       = wa_head
+        IMPORTING
+          invoicedocnumber = wa_disp-invoicedocnumber
+          fiscalyear       = wa_disp-fiscalyear
+        TABLES
+          itemdata         = it_item
+          withtaxdata      = it_with
+          return           = it_return.
+      READ TABLE it_return INTO ls_return
+                 WITH KEY type ='E'.
+      IF sy-subrc EQ 0.
+        wa_disp-ebeln = wa_mkpf-mblnr.
+        wa_disp-msg = ls_return-message.
+        APPEND wa_disp TO it_disp.
+        ROLLBACK WORK.
+      ELSE.
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+          EXPORTING
+            wait = 'X'.
+        wa_disp-ebeln = wa_mkpf-mblnr.
+        APPEND wa_disp TO it_disp.
+      ENDIF.
+    ENDIF.
+    CLEAR : wa_mkpf,wa_mseg,wa_ekko,wa_head,wa_item,wa_disp,wa_with,
+    wa_item,wa_ekpo,wa_ekbe,wa_item,wa_head,wa_ekbe,lv_taxtot.
+
+    REFRESH : it_item,
+              it_with,
+              it_return.
+  ENDLOOP.
+ENDFORM.
+
+*****************************************************
+*----------------------------------------------------------------------*
+***INCLUDE ZFI_MIGO_MIRO_AUTO1_N_POF01.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  PO
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM ms_e USING m_v1
+                m_v2
+                m_v3
+                m_v4.
+
+  gv_error = abap_true.
+
+  CALL FUNCTION 'MESSAGES_ACTIVE'
+    EXCEPTIONS
+      not_active = 1.
+
+  IF sy-subrc = 1.
+    DATA gd_indenti TYPE sy-uzeit.
+    CALL FUNCTION 'MESSAGES_INITIALIZE'
+      EXPORTING
+        check_on_commit      = 'X'
+      IMPORTING
+        e_identification     = gd_indenti
+      EXCEPTIONS
+        log_not_active       = 1
+        wrong_identification = 2
+        OTHERS               = 3.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ENDIF.
+
+  CALL FUNCTION 'MESSAGE_STORE'
+    EXPORTING
+      arbgb                  = '00'
+*     EXCEPTION_IF_NOT_ACTIVE       = 'X'
+      msgty                  = 'E'
+      msgv1                  = m_v1
+      msgv2                  = m_v2
+      msgv3                  = m_v3
+      msgv4                  = m_v4
+      txtnr                  = '001'
+*     ZEILE                  = ' '
+    EXCEPTIONS
+      message_type_not_valid = 1
+      not_active             = 2
+      OTHERS                 = 3.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.
+
+FORM messages.
+  DATA gw_msg_count TYPE sy-tabix.
+  CHECK NOT gv_error IS INITIAL.
+  gw_msg_count = 0.
+
+  CALL FUNCTION 'MESSAGES_COUNT'
+    IMPORTING
+      count = gw_msg_count.
+  IF gw_msg_count <> 0.
+    CALL FUNCTION 'MESSAGES_SHOW'.
+* Implement suitable error handling here
+  ENDIF.
+
+  CALL FUNCTION 'MESSAGES_INITIALIZE'.
+ENDFORM.
+FORM po .
+  REFRESH gt_final.
+  DATA lv_mes TYPE string.
+  SELECT SINGLE bwkey FROM t001k INTO @DATA(lv_bwkey) WHERE bukrs = @p_bukrs.
+
+  SELECT SINGLE * FROM ekko INTO  @DATA(ls_ekko) WHERE ebeln = @p_ebeln
+                                                   AND bsart IN ('ZTPO', 'ZNRO').
+  IF sy-subrc NE '0'.
+    lv_mes = 'Please provide the PO number of PO Type ZTPO or ZNRO only'.
+    MESSAGE lv_mes TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE TO SCREEN 0.
+  ELSE.
+    gs_ekko = ls_ekko.
+  ENDIF.
+
+  SELECT * FROM ekpo
+           INTO TABLE @DATA(lt_ekpo)
+           WHERE ebeln = @p_ebeln
+           AND bukrs = @p_bukrs
+           AND loekz = ' '.
+  IF sy-subrc EQ 0.
+    READ TABLE lt_ekpo INTO DATA(ls_ekpo1) INDEX 1.
+    SELECT SINGLE j_1bbranch FROM t001w
+           INTO @DATA(lv_j_1bbranch)
+           WHERE werks = @ls_ekpo1-werks
+           AND bwkey = @lv_bwkey.
+
+    SELECT * FROM makt
+             INTO TABLE @DATA(lt_makt)
+             FOR ALL ENTRIES IN @lt_ekpo
+             WHERE matnr = @lt_ekpo-matnr AND
+                   spras = @sy-langu.
+  ELSE.
+    MESSAGE 'PO item is under locked/deleted' TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE TO SCREEN 0.
+  ENDIF.
+
+
+  SELECT  * FROM ekbe INTO TABLE @DATA(lt_ekbe)
+                     FOR ALL ENTRIES IN @lt_ekpo
+                     WHERE ebeln = @lt_ekpo-ebeln
+                     AND ebelp = @lt_ekpo-ebelp
+                     AND bewtp = 'Q'.
+  IF sy-subrc EQ 0.
+    SELECT  * FROM rbkp
+               INTO TABLE @DATA(lt_rbkp_d)
+               FOR ALL ENTRIES IN @lt_ekbe
+               WHERE belnr = @lt_ekbe-belnr
+               AND gjahr = @lt_ekbe-gjahr
+               AND stblg = @space
+               AND xrech = 'X'
+               AND bukrs = @ls_ekko-bukrs.
+  ENDIF.
+
+
+  SELECT ebeln, ebelp, zekkn, vgabe, gjahr, belnr, buzei,  menge  FROM ekbe
+       INTO TABLE @DATA(lt_ekbet)
+       FOR ALL ENTRIES IN @lt_ekpo
+       WHERE ebeln = @lt_ekpo-ebeln
+       AND ebelp = @lt_ekpo-ebelp
+       AND bewtp = 'T'.
+*       GROUP BY ebeln, ebelp.
+  IF sy-subrc EQ 0.
+    SORT lt_ekbet BY ebeln ebelp.
+    DATA lv_sum_menge TYPE menge_d.
+    DATA(lt_ekbe1) = lt_ekbet.
+    REFRESH lt_ekbe1.
+    LOOP AT lt_ekbet ASSIGNING FIELD-SYMBOL(<ls_ekbet>).
+      lv_sum_menge = lv_sum_menge + <ls_ekbet>-menge .
+      AT END OF ebelp.
+        <ls_ekbet>-menge = lv_sum_menge.
+        APPEND <ls_ekbet> TO lt_ekbe1.
+        CLEAR lv_sum_menge.
+      ENDAT.
+    ENDLOOP.
+  ENDIF.
+  DATA lv_menge TYPE menge_d.
+  LOOP AT lt_ekpo INTO DATA(ls_ekpo).
+
+    CLEAR : lv_menge,
+            gs_final.
+    LOOP AT lt_ekbe INTO DATA(ls_ekbe)
+            WHERE ebeln = ls_ekpo-ebeln AND
+                  ebelp = ls_ekpo-ebelp.
+      READ TABLE lt_rbkp_d INTO DATA(ls_rbkp1)
+           WITH KEY belnr = ls_ekbe-belnr
+                    gjahr = ls_ekbe-gjahr
+                    stblg = ' '
+                    xrech = 'X'
+                    bukrs = ls_ekko-bukrs.
+      IF sy-subrc EQ 0.
+        lv_menge = lv_menge + ls_ekbe-menge.
+      ENDIF.
+    ENDLOOP.
+
+    READ TABLE lt_ekbe1 INTO DATA(ls_ekbe1)
+         WITH KEY ebeln = ls_ekpo-ebeln
+                  ebelp = ls_ekpo-ebelp.
+    IF sy-subrc EQ 0.
+      lv_menge = lv_menge + ls_ekbe1-menge.
+
+    ENDIF.
+    IF NOT lv_menge IS INITIAL.
+      IF  lv_menge GE ls_ekpo-menge .
+        gs_final-msg = 'MIRO Invoice(s) already parked/posted' .
+*        CONTINUE.
+      ELSE.
+*        lv_menge = ls_ekpo-menge - lv_menge.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE lt_makt INTO DATA(ls_makt)
+         WITH KEY matnr = ls_ekpo-matnr.
+
+
+    gs_final-ebelp = ls_ekpo-ebelp.
+    gs_final-matnr = ls_ekpo-matnr.
+    gs_final-maktx = ls_makt-maktx.
+    gs_final-menge = ls_ekpo-menge.
+    gs_final-menge_c = lv_menge.
+    gs_final-bedat = ls_ekko-bedat.
+    gs_final-ebeln = ls_ekpo-ebeln.
+    gs_final-bukrs = ls_ekko-bukrs.
+    gs_final-zterm = ls_ekko-zterm.
+    gs_final-j_1bbranch = lv_j_1bbranch.
+    gs_final-mwskz = ls_ekpo-mwskz.
+    gs_final-mwskz = ls_ekpo-mwskz.
+    gs_final-netpr = ls_ekpo-netpr.
+    gs_final-meins = ls_ekpo-meins.
+    gs_final-lifnr = ls_ekko-lifnr.
+    gs_final-werks = ls_ekpo-werks.
+    IF NOT gs_final-msg IS INITIAL.
+      gs_final-icon = '1'.
+    ENDIF.
+
+    APPEND gs_final TO gt_final.
+    CLEAR gs_final.
+  ENDLOOP.
+
+*  IF gt_final IS INITIAL.
+*    MESSAGE 'MIRO Invoice(s) already parked/posted' TYPE 'S'
+*            DISPLAY LIKE 'E'.
+*    LEAVE TO SCREEN 0.
+*  ENDIF.
+
+*  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_CAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*----------------------------------------------------------------------*
+FORM build_cat  USING  p_fname p_ftext .
+  DATA lw_fcat TYPE lvc_s_fcat.
+  CLEAR gv_pos.
+  gv_pos = gv_pos + 1.
+  lw_fcat-col_pos = gv_pos.
+  lw_fcat-fieldname = p_fname.
+  lw_fcat-seltext = p_ftext.
+  lw_fcat-selddictxt = p_ftext.
+  lw_fcat-reptext = p_ftext.
+  IF
+     p_fname = 'XBLNR' OR
+     p_fname = 'ZUONR' OR
+     p_fname = 'MENGE_M'." or
+    lw_fcat-edit = 'X'.
+  ENDIF.
+  IF p_fname = 'MENGE_M'.
+*    lw_fcat-ref_field = 'FKIMG'.
+*    lw_fcat-ref_table = 'VBRP'.
+    lw_fcat-inttype = 'QUAN'.
+  ENDIF.
+
+  IF p_fname = 'MSG'.
+    lw_fcat-intlen = '125'.
+  ENDIF.
+  APPEND lw_fcat TO gt_fcat.
+  CLEAR  lw_fcat.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Module  GET_DATA  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE get_data OUTPUT.
+*  CHECK gv_error IS INITIAL.
+*  REFRESH gt_final.
+*  PERFORM po.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  DISPLAY  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE display OUTPUT.
+  DATA: lt_exclude TYPE ui_functions.
+  gv_error = error_in_data.
+  CHECK gv_error IS INITIAL.
+  IF lo_grid IS INITIAL.
+    TRY.
+
+*      PERFORM build_cat USING : '
+        PERFORM build_cat USING : 'ICON' ' ',
+                                  'EBELP' 'Item',
+                                  'MATNR' 'Material',
+                                  'MAKTX' 'Material Desc',
+                                  'MENGE' 'Quantity',
+                                  'MENGE_C' 'Cmptd Qty',
+                                  'MENGE_M' 'MIRO Qty',
+                                  'ZUONR' 'Assignment for MIRO',
+                                  'XBLNR' 'Reference for MIRO',
+                                  'VBELN' 'Invoice Number',
+                                  'GJAHR' 'Fiscal Year',
+                                  'MSG'   'Message'.
+
+        gs_layout-sel_mode = 'A'.
+        gs_layout-excp_led = 'X'.
+        gs_layout-excp_fname = 'ICON'.
+        gs_layout-col_opt = 'X'.
+        lo_grid =
+          NEW cl_gui_alv_grid(
+              i_parent = cl_gui_container=>default_screen ).
+
+        PERFORM exclude_tb_functions CHANGING lt_exclude.
+
+        lo_grid->set_table_for_first_display(
+                      EXPORTING
+*                 i_structure_name = gt_fcat
+                 is_layout             = gs_layout
+                 it_toolbar_excluding  = lt_exclude
+                  CHANGING  it_outtab        = gt_final
+                            it_fieldcatalog       = gt_fcat ).
+        " set editable cells to ready for input
+        CALL METHOD lo_grid->set_ready_for_input
+          EXPORTING
+            i_ready_for_input = 1.
+
+        CALL METHOD lo_grid->register_edit_event
+          EXPORTING
+            i_event_id = cl_gui_alv_grid=>mc_evt_modified. "mc_evt_enter."
+
+        CREATE OBJECT g_event_receiver .
+        SET HANDLER g_event_receiver->handle_user_command
+                    g_event_receiver->handle_data_changed
+                    g_event_receiver->handle_toolbar
+                    FOR ALL INSTANCES.
+
+        CALL METHOD lo_grid->set_toolbar_interactive.
+      CATCH cx_root.
+        MESSAGE 'Error in ALV creation' TYPE 'S'.
+
+    ENDTRY.
+  ELSE.
+    lo_grid->refresh_table_display( ).
+    CALL METHOD cl_gui_control=>set_focus EXPORTING control = lo_grid.
+
+  ENDIF.
+ENDMODULE.
+MODULE pai_100 INPUT.
+
+  CASE ok_code.
+    WHEN 'EXIT'.
+      PERFORM exit_program.
+
+  ENDCASE.
+  CLEAR ok_code.
+ENDMODULE.
+FORM exit_program.
+* The instance custom_container2 is freed not until the program
+* exits from the main screen.
+* (It is created only once during the first selection of SFLIGHT,
+* no matter how many times the second window is called).
+*
+  CLEAR lo_grid.
+  CALL METHOD cl_gui_cfw=>flush.
+  IF sy-subrc NE 0.
+* add your handling, for example
+    CALL FUNCTION 'POPUP_TO_INFORM'
+      EXPORTING
+        titel = sy-repid
+        txt2  = sy-subrc
+        txt1  = 'Error in Flush'(500).
+  ENDIF.
+  LEAVE TO SCREEN 0 .
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  CLEAR gv_error.
+  SET PF-STATUS 'MAIN100'.
+*  SET TITLEBAR 'xxx'.
+ENDMODULE.
+
+FORM exclude_tb_functions CHANGING pt_exclude TYPE ui_functions.
+* Only allow to change data not to create new entries (exclude
+* generic functions).
+
+  DATA ls_exclude TYPE ui_func.
+
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_copy_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_delete_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_append_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_insert_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_loc_move_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=>mc_fc_refresh.
+  APPEND ls_exclude TO pt_exclude.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  POST_PARKING
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM post_parking USING  lt_rows TYPE lvc_t_row.
+  DATA : ebeln   TYPE char30,
+         ebelp   TYPE char30,
+         line(5) TYPE n,
+         mode    TYPE char1.
+  DATA :lt_lfbw TYPE TABLE OF lfbw,   "added on 241123
+        wa_lfbw TYPE lfbw.   "added on 241123
+  DATA : it_head   TYPE TABLE OF bapi_incinv_create_header,
+         wa_head   TYPE bapi_incinv_create_header,
+         it_item   TYPE TABLE OF bapi_incinv_create_item,
+         wa_item   TYPE bapi_incinv_create_item,
+         it_acc    TYPE TABLE OF bapi_incinv_create_account,
+         wa_acc    TYPE bapi_incinv_create_account,
+         it_tax    TYPE TABLE OF bapi_incinv_create_tax,
+         lt_t059p  TYPE TABLE OF t059p,  "added on 241123
+         wa_t059p  TYPE t059p,
+         wa_tax    TYPE bapi_incinv_create_tax,
+         it_with   TYPE TABLE OF bapi_incinv_create_withtax,
+         wa_with   TYPE bapi_incinv_create_withtax,
+         it_return TYPE TABLE OF bapiret2,
+         lt_return TYPE TABLE OF bapiret2,
+         wa_return TYPE bapiret2,
+         lv_msg    TYPE string, " Added by P.R on 03.11.2023
+         lv_msg1   TYPE string. " Added by P.R on 03.11.2023
+
+*Added on 24.11.23
+  DATA : lw_taxcom TYPE taxcom,
+         lt_gst    TYPE TABLE OF komv,
+         lw_gst    TYPE komv.
+
+  DATA : lv_tax     TYPE bseg-dmbtr,
+         lv_taxtot  TYPE bseg-dmbtr,
+         lv_gamount TYPE bseg-dmbtr,
+         lv_withamt TYPE bseg-dmbtr.
+  DATA ls_return TYPE bapiret2.
+  DATA : line1(6) TYPE n,
+         v_wrbtr  TYPE char13.
+*ended on 24.11.23
+
+  DATA : v_date TYPE char10,
+         n_date TYPE char10,
+         m_date TYPE char10.
+
+  CLEAR wa_head.
+  REFRESH : it_item, it_head.
+  IF gv_error EQ 'X'.
+    MESSAGE 'Error in posting records' TYPE 'S'.
+  ELSE.
+    LOOP AT  lt_rows INTO DATA(ls_rows).
+      CLEAR gs_final.
+      READ TABLE gt_final ASSIGNING FIELD-SYMBOL(<gs_final>)
+           INDEX ls_rows-index.
+      IF sy-subrc EQ 0 AND <gs_final>-icon NE '1' .
+        gs_final = <gs_final>.
+        IF <gs_final>-menge_m IS INITIAL.
+          <gs_final>-msg = 'Please maintain the MIRO Qty'.
+          <gs_final>-icon = '1'.
+          gv_error = 'X'.
+          CONTINUE.
+        ENDIF.
+        wa_head-invoice_ind = 'X'.
+        wa_head-doc_date = gs_final-bedat.
+        wa_head-pstng_date  = sy-datum.
+        wa_head-ref_doc_no = gs_final-xblnr. "gs_final-ebeln."ls_ekko-ebeln.
+        wa_head-comp_code = gs_final-bukrs.
+        wa_head-currency = 'INR'. "ls_ekko-waers.
+        wa_head-gross_amount = ' '.
+        wa_head-pmnttrms = gs_final-zterm.
+        wa_head-bline_date = gs_final-bedat.
+        wa_head-header_txt = gs_final-xblnr.
+        wa_head-business_place = 'MH01'. "gs_final-j_1bbranch.
+        wa_head-calc_tax_ind = 'X'.
+        wa_head-item_text = gs_final-ebeln.
+        wa_head-alloc_nmbr = gs_final-zuonr.
+
+        CLEAR wa_item.
+        line = line + '00001'.
+        wa_item-invoice_doc_item = line.
+        wa_item-po_number = gs_final-ebeln.
+        wa_item-po_item = gs_final-ebelp.
+        wa_item-tax_code = gs_final-mwskz.
+
+
+        wa_item-item_amount = gs_final-menge_m * gs_final-netpr.
+*      wa_item-item_amount = ls_ekpo-netwr.
+*      wa_item-quantity = ls_ekpo-menge.
+
+        IF NOT gs_final-matnr IS INITIAL.
+          lv_withamt = lv_withamt + wa_item-item_amount.
+        ENDIF.
+
+        wa_item-quantity = gs_final-menge_m.
+        wa_item-po_unit = gs_final-meins.
+
+        IF gs_final-mwskz IS NOT INITIAL.
+          CLEAR : lw_taxcom, lt_gst.
+          lw_taxcom-bukrs = wa_head-comp_code.
+          lw_taxcom-budat = wa_head-pstng_date.
+          lw_taxcom-waers = wa_head-currency.
+          lw_taxcom-kposn = wa_item-po_item.
+          lw_taxcom-mwskz = wa_item-tax_code.
+          lw_taxcom-wrbtr = wa_item-item_amount.
+          lw_taxcom-lifnr = gs_final-lifnr.
+          IF gs_final-matnr IS NOT INITIAL.
+            lw_taxcom-matnr = gs_final-matnr.
+            lw_taxcom-werks = gs_final-werks.
+          ELSEIF gs_final-matnr IS INITIAL.
+            lw_taxcom-ebeln = gs_final-ebeln.
+            lw_taxcom-ebelp = gs_final-ebelp.
+          ENDIF.
+          CALL FUNCTION 'CALCULATE_TAX_ITEM'
+            EXPORTING
+              i_taxcom = lw_taxcom
+            TABLES
+              t_xkomv  = lt_gst.
+          IF sy-subrc <> 0.
+*       Implement suit able error handling here
+          ENDIF.
+          CLEAR : lw_gst.
+          LOOP AT lt_gst INTO lw_gst WHERE kbetr NE ' ' AND kschl NE 'JITC'.
+            CLEAR : lv_tax.
+            lv_tax = ( lw_gst-kawrt * lw_gst-kbetr ) / 1000.
+            lv_taxtot = lv_taxtot + lv_tax.
+            CLEAR : lw_gst.
+          ENDLOOP.
+        ENDIF.
+        lv_gamount = wa_item-item_amount + lv_taxtot.
+        wa_head-gross_amount = wa_head-gross_amount + lv_gamount.
+*      lv_withamt = lv_withamt + wa_item-item_amount.
+        CLEAR : lv_gamount,lv_taxtot.
+*      CLEAR : line.
+*Ended on 24.11.2023
+        IF it_head IS INITIAL.
+          APPEND wa_head TO it_head.
+        ENDIF.
+        IF NOT wa_item IS INITIAL.
+          APPEND wa_item TO it_item.
+        ENDIF.
+      ELSE.
+        <gs_final>-msg = 'Unable to process the error records'.
+        <gs_final>-icon = '1'.
+        gv_error = 'X'.
+      ENDIF.
+    ENDLOOP.
+    IF sy-subrc EQ 0 AND
+       NOT it_item IS INITIAL AND
+       gv_error IS INITIAL.
+      CLEAR : lt_lfbw.
+      "  lv_withamt.
+      SELECT * FROM lfbw INTO TABLE lt_lfbw WHERE lifnr = gs_final-lifnr
+                                              AND bukrs = wa_head-comp_code
+                                              AND wt_subjct NE ' '
+                                              AND wt_withcd NE ' '.
+      IF lt_lfbw IS NOT INITIAL.
+        SELECT * FROM t059p INTO TABLE lt_t059p WHERE land1 = 'IN'.
+*                                              AND wt_postm = '1'.
+      ENDIF.
+      CLEAR : line1.
+      CLEAR : it_with,wa_with.
+      LOOP AT lt_lfbw INTO wa_lfbw.
+        CLEAR : wa_t059p.
+        READ TABLE lt_t059p INTO wa_t059p WITH KEY witht = wa_lfbw-witht.
+        IF sy-subrc = 0.
+          line1 = line1 + '000001'.
+          wa_with-split_key = line1.
+          wa_with-wi_tax_type = wa_lfbw-witht.
+          wa_with-wi_tax_code = wa_lfbw-wt_withcd.
+          IF wa_lfbw-witht EQ 'QI'.
+            wa_with-wi_tax_base = lv_withamt.
+            APPEND wa_with TO it_with.
+          ELSE.
+            wa_with-wi_tax_base = ' '.
+            APPEND wa_with TO it_with.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+      DATA lv_vbeln TYPE bapi_incinv_fld-inv_doc_no.
+      DATA lv_gjahr TYPE bapi_incinv_fld-fisc_year.
+      CLEAR : lv_vbeln,
+              lv_gjahr.
+      IF it_head IS NOT INITIAL AND it_item IS NOT INITIAL.
+        REFRESH it_return.
+        CALL FUNCTION 'BAPI_INCOMINGINVOICE_PARK'
+          EXPORTING
+            headerdata       = wa_head
+          IMPORTING
+            invoicedocnumber = lv_vbeln
+            fiscalyear       = lv_gjahr
+          TABLES
+            itemdata         = it_item
+            withtaxdata      = it_with
+            return           = it_return.
+
+        READ TABLE it_return INTO ls_return
+       WITH KEY type ='E'.
+        IF sy-subrc EQ 0.
+          LOOP AT lt_rows INTO ls_rows.
+            READ TABLE gt_final ASSIGNING FIELD-SYMBOL(<ls_final_d>)
+                 INDEX ls_rows-index.
+            IF sy-subrc EQ 0.
+              <ls_final_d>-msg = ls_return-message.
+              <ls_final_d>-icon = '1'.
+            ENDIF.
+          ENDLOOP.
+*        PERFORM ms_e USING ls_return-message '' '' ''.
+          ROLLBACK WORK.
+          EXIT.
+        ELSE.
+          CLEAR gv_error.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              wait = 'X'.
+          LOOP AT lt_rows INTO ls_rows.
+            READ TABLE gt_final ASSIGNING <ls_final_d>
+                 INDEX ls_rows-index.
+            IF sy-subrc EQ 0.
+              <ls_final_d>-vbeln = lv_vbeln.
+              <ls_final_d>-gjahr = lv_gjahr.
+              <ls_final_d>-icon = '3'.
+              <ls_final_d>-msg = 'Invoice is parked'.
+            ENDIF.
+          ENDLOOP.
+        ENDIF.
+      ENDIF.
+
+    ENDIF.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Module  MESSAGE  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE message OUTPUT.
+  PERFORM messages.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Form  VLIDATE_DATA_MIROPARK
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM vlidate_data_miropark USING lt_rows TYPE lvc_t_row.
+  DATA lt_final TYPE TABLE OF gty_final.
+  lt_final = gt_final.
+
+  SORT lt_final BY xblnr.
+  IF NOT gt_final IS INITIAL.
+    SELECT  * FROM ekbe INTO TABLE @DATA(lt_ekbe)
+                       FOR ALL ENTRIES IN @gt_final
+                       WHERE ebeln = @gt_final-ebeln
+                       AND ebelp = @gt_final-ebelp
+                       AND bewtp = 'Q'.
+    IF sy-subrc EQ 0.
+      SELECT  * FROM rbkp
+                 INTO TABLE @DATA(lt_rbkp_d)
+                 FOR ALL ENTRIES IN @lt_ekbe
+                 WHERE belnr = @lt_ekbe-belnr
+                 AND gjahr = @lt_ekbe-gjahr
+                 AND stblg = @space
+                 AND xrech = 'X'
+                 AND bukrs = @p_bukrs.
+    ENDIF..
+*  delete lt_final where
+    SELECT ebeln, ebelp, zekkn, vgabe, gjahr, belnr, buzei,  menge  FROM ekbe
+        INTO TABLE @DATA(lt_ekbet)
+        FOR ALL ENTRIES IN @gt_final
+        WHERE ebeln = @gt_final-ebeln
+        AND ebelp = @gt_final-ebelp
+        AND bewtp = 'T'.
+*       GROUP BY ebeln, ebelp.
+    IF sy-subrc EQ 0.
+      SORT lt_ekbet BY ebeln ebelp.
+      DATA lv_sum_menge TYPE menge_d.
+      DATA(lt_ekbe1) = lt_ekbet.
+      REFRESH lt_ekbe1.
+      LOOP AT lt_ekbet ASSIGNING FIELD-SYMBOL(<ls_ekbet>).
+        lv_sum_menge = lv_sum_menge + <ls_ekbet>-menge .
+        AT END OF ebelp.
+          <ls_ekbet>-menge = lv_sum_menge.
+          APPEND <ls_ekbet> TO lt_ekbe1.
+          CLEAR lv_sum_menge.
+        ENDAT.
+      ENDLOOP.
+    ENDIF.
+    lt_final = gt_final.
+    SORT lt_final BY xblnr.
+    DELETE ADJACENT DUPLICATES FROM lt_final COMPARING xblnr.
+    IF NOT lt_final IS INITIAL.
+      SELECT  * FROM rbkp
+             INTO TABLE @DATA(lt_rbkp_xblnr)
+             FOR ALL ENTRIES IN @lt_final
+             WHERE xblnr = @lt_final-xblnr
+             AND lifnr = @gs_ekko-lifnr
+             AND stblg = @space
+             AND xrech = 'X'
+               AND rbstat IN ('5', 'A')
+             AND bukrs = @p_bukrs.
+    ENDIF.
+    lt_final = gt_final.
+    SORT lt_final BY zuonr.
+    DELETE lt_final WHERE zuonr IS INITIAL.
+    DELETE ADJACENT DUPLICATES FROM lt_final COMPARING zuonr.
+    IF NOT lt_final IS INITIAL.
+      SELECT  * FROM rbkp
+             INTO TABLE @DATA(lt_rbkp_zuonr)
+             FOR ALL ENTRIES IN @lt_final
+             WHERE zuonr = @lt_final-zuonr
+             AND stblg = @space
+             AND xrech = 'X'
+               AND rbstat IN ('5', 'A')
+             AND bukrs = @p_bukrs.
+    ENDIF.
+  ENDIF.
+  DATA lv_menge TYPE menge_d.
+  LOOP AT lt_rows INTO DATA(ls_rows).
+    READ TABLE gt_final ASSIGNING FIELD-SYMBOL(<ls_final>)
+          INDEX ls_rows-index.
+    IF sy-subrc EQ 0.
+      CLEAR : lv_menge,
+          gs_final.
+      LOOP AT lt_ekbe INTO DATA(ls_ekbe)
+              WHERE ebeln = <ls_final>-ebeln AND
+                    ebelp = <ls_final>-ebelp.
+        READ TABLE lt_rbkp_d INTO DATA(ls_rbkp1)
+             WITH KEY belnr = ls_ekbe-belnr
+                      gjahr = ls_ekbe-gjahr
+                      stblg = ' '
+                      xrech = 'X'
+                      bukrs = p_bukrs.
+        IF sy-subrc EQ 0.
+          lv_menge = lv_menge + ls_ekbe-menge.
+        ENDIF.
+      ENDLOOP.
+*      IF sy-subrc EQ 0.
+      READ TABLE lt_ekbe1 INTO DATA(ls_ekbe1)
+           WITH KEY ebeln = <ls_final>-ebeln
+                    ebelp = <ls_final>-ebelp.
+      IF sy-subrc EQ 0.
+        lv_menge = lv_menge + ls_ekbe1-menge.
+      ENDIF.
+      IF NOT lv_menge IS INITIAL.
+        IF  lv_menge GE <ls_final>-menge .
+          <ls_final>-msg = 'MIRO Invoice(s) already parked/posted' .
+          <ls_final>-icon = '1'.
+          gv_error = 'X'.
+          CONTINUE.
+        ELSE.
+          CLEAR gv_error.
+*        lv_menge = ls_ekpo-menge - lv_menge.
+        ENDIF.
+      ENDIF.
+**      ENDIF.
+      IF <ls_final>-menge_m IS INITIAL.
+        <ls_final>-msg = 'MIRO Qty should not be blank' .
+        <ls_final>-icon = '1'.
+        gv_error = 'X'.
+        CONTINUE.
+      ELSE.
+        CLEAR gv_error.
+      ENDIF.
+      IF <ls_final>-zuonr IS INITIAL AND
+         <ls_final>-xblnr IS INITIAL.
+        <ls_final>-msg = 'Assignment & Reference number should not be blank' .
+        <ls_final>-icon = '1'.
+        gv_error = 'X'.
+        CONTINUE.
+      ELSE.
+        CLEAR gv_error..
+      ENDIF.
+      IF <ls_final>-zuonr IS INITIAL.
+        <ls_final>-msg = 'Assignment number should not be blank' .
+        <ls_final>-icon = '1'.
+        gv_error = 'X'.
+        CONTINUE.
+      ELSE.
+        CLEAR gv_error.
+      ENDIF.
+      IF <ls_final>-xblnr IS INITIAL.
+        <ls_final>-msg = 'Reference number should not be blank' .
+        <ls_final>-icon = '1'.
+        gv_error = 'X'.
+        CONTINUE.
+      ELSE.
+        CLEAR gv_error.
+      ENDIF.
+
+      IF NOT <ls_final>-xblnr IS INITIAL.
+        READ TABLE lt_rbkp_xblnr INTO DATA(ls_rbkp_xblnr)
+             WITH KEY xblnr = <ls_final>-xblnr
+                      lifnr = gs_ekko-lifnr.
+        IF sy-subrc EQ 0.
+          <ls_final>-msg = |Reference is duplicated with { ls_rbkp_xblnr-belnr } { ls_rbkp_xblnr-gjahr }| .
+          <ls_final>-icon = '1'.
+          gv_error = 'X'.
+        ELSE.
+          CLEAR gv_error.
+        ENDIF.
+      ENDIF.
+      IF NOT <ls_final>-zuonr IS INITIAL.
+        READ TABLE lt_rbkp_zuonr INTO DATA(ls_rbkp_zuonr)
+             WITH KEY zuonr = <ls_final>-zuonr.
+*                      lifnr = gs_ekko-lifnr.
+        IF sy-subrc EQ 0.
+          <ls_final>-msg = |Assignment is duplicated with { ls_rbkp_zuonr-belnr } { ls_rbkp_zuonr-gjahr }| .
+          <ls_final>-icon = '1'.
+          gv_error = 'X'.
+        ELSE.
+          CLEAR gv_error.
+        ENDIF.
+      ENDIF.
+
+      IF gv_error IS INITIAL.
+        CLEAR :<ls_final>-msg ,
+        <ls_final>-icon.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.
+
+
+
+
+
