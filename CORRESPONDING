@@ -1,5 +1,13 @@
 Corresponding --> key word
+- Used for move the data between the two internal tables.
+- Both internal tables have different structures.
+- Both internal tables have the same structures also it will work.
 
+
+- Both internal tables have the same structures also it will work. 
+Ex: itab2 = iteab1. - structures are same.
+    append lines of itab1 to itab2. - structures are same.
+    itab2 = corresponsing #( itab1 ). - structures are different.
 use:
 
 types: begin of ty_data1,
