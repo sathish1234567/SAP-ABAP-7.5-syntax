@@ -10,7 +10,7 @@ Ex: itab2 = iteab1. - structures are same.
     itab2 = corresponsing #( itab1 ). - structures are different.
 
 Corresponding #( <itab> )- Moves data between the internal tables for the matching columns.
-corresponding with except - move the data of the selected matching columns.
+corresponding with except - move the data of the selected matching columns and restrict to the specific columns using except, those are not transferred to the another internal table..
 corresponding with mapping - map data of one column to another column. 
 use:
 
