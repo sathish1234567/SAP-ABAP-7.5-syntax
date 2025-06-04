@@ -15,5 +15,42 @@ types : begin of ty_test,
 
 data lt_Test type table of ty_test.
 
-lt_test = value #( ( a =1 b =2 ) ).
+lt_test = value #( ( a =1 b =2 ) ). --> Append data to internal table.
+
+output: 
+a    b
+1    2
+
+lt_test = value #( ( a = 10 b = 20 ) ). -->Here it will not append the data.. it will overwrite the data to lt_data.
+output: 
+a    b
+10   20
+
+lt_test = value #( base lt_test ( a = 20 b = 30 ) ). -- 
+output: 
+a    b
+10   20
+20   30
+
+Here 1. BASE will work as append lines of lt_test to lt_test. 
+     2. Next ( a = 20 b = 30 ), will append to the lt_test.
+
+BASE will very useful in loop. -->Ex: when you are inserting the data to the internal table using loop, 
+1. With out BASE- First record insert to the internal table and later second record over write with the first record only. so, here intenral table always only one record.
+2. WITH BASE, First BASE will append the data to the internal table later, remaining data append to the internal table.
+
+in loop with VALUE # and BASE:
+______________________________
+loop at lt_vbak into ls_vbak.
+     loop at lt_vbap into ls_vbap
+             where vbeln = ls_vbak-vbeln.
+        if line_Exists( lt_makt[ matnr = ls_vbap-matnr ] ).
+        data(lwa_makt) = lt_makt[ matnr = ls_vbap-matnr ].
+        lt_output = value #( BASE lt_output ( VBELN = ls_vbak-vbeln posnr = ls_vbap-posnr matnr = ls_vbap-matnr ) ).
+        endif.
+     endloop.
+endloop.
+
+line_exists- Function used for checking records ara available or not.
+
 
