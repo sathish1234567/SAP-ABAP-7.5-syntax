@@ -1,0 +1,19 @@
+BASE used for
+BASE used in the value expression only.
+1. When we don't want to overwrite the existing values of the internal tables, we use BASE in value expressions.
+2. The values of the BASE table act as a initial values for the target table and after that the new values are inserted to the internal table.
+3. It is very useful in loops when we want to append the rows to the internal table using value expressions.
+
+4. it seems to works as "APPEND LINES OF <ITAB1> to <ITAB2>.
+
+BASE EX:
+
+types : begin of ty_test,
+          a type i,
+          b type i,
+        end of ty_test,
+
+data lt_Test type table of ty_test.
+
+lt_test = value #( ( a =1 b =2 ) ).
+
