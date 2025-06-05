@@ -1,0 +1,12 @@
+Let- Keyword
+is defining a variable or field-symbols in an expressions and assign values to them.
+
+Use: to define the variables or field-symbols in abap
+
+It work as local helper or local declerations.
+
+Important points:
+_________________
+-Whatever defining varaibles or field symbols using let keyword, those are we can't use it outside of the block.
+
+
