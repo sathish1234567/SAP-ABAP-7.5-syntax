@@ -110,3 +110,19 @@ data lt_i type table of i.
 lt_i = value #( (1) (2) ).
 if line_Exists( lt_i[ table_line = 1 ] )
 endif.
+
+Ex:
+" let Expression
+SELECT vbeln,
+       ernam
+       FROM vbrk
+       INTO TABLE @DATA(lt_vbrk)
+       UP TO 10 ROWS.
+IF sy-subrc NE 0.
+  lt_vbrk = VALUE #( ( vbeln = '1234' ernam = 'SATHISH' ) ).
+ENDIF.
+IF line_exists( lt_vbrk[ 1 ] ).
+  lt_vbrk = VALUE #( LET lv_vbeln = '10' IN ( vbeln = lv_vbeln ) ).
+  DATA(lv_index) = line_index( lt_vbrk[ vbeln = '10' ] ) . -- lv_index = 1
+  cl_demo_output=>display( lt_vbrk ).
+ENDIF.
