@@ -7,3 +7,8 @@ Ex:
     IF lo_ref IS BOUND.
       WRITE |object created|.
     ENDIF.
+
+or 
+
+    DATA lo_ref TYPE REF TO lcl.
+    lo_ref = new #( ).
