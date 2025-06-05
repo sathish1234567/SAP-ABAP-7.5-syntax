@@ -1,0 +1,9 @@
+Before ABAP 7.4 to create the object, we used the key word as "CREATE OBJECT"
+After 7.4 to create the object- Key word- "NEW"
+
+Ex:
+    NEW lcl( )->display( ). --> here object created along with display() method also called.
+    DATA(lo_ref) = NEW lcl( ). --> object created, later called the display method using the object
+    IF lo_ref IS BOUND.
+      WRITE |object created|.
+    ENDIF.
