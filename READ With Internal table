@@ -105,3 +105,8 @@ Read with index number	      READ TABLE it_flights INTO ls_flight INDEX 1.	ls_fl
 Read with index variable	READ TABLE it_flights INTO ls_flight INDEX lv_idx.	ls_flight = it_flights[ lv_idx ].
 Read with free key	      READ TABLE it_flights INTO ls_flight WITH KEY carrid = 'SQ'.	ls_flight = it_flights[ carrid = 'SQ' ].
 Read with more than one free key	READ TABLE it_flights INTO ls_flight WITH KEY carrid = 'SQ' connid = '0026'.	ls_flight = it_flights[ carrid = 'SQ' connid = '0026' ].
+READ with table_line
+data lt_i type table of i.
+lt_i = value #( (1) (2) ).
+if line_Exists( lt_i[ table_line = 1 ] )
+endif.
