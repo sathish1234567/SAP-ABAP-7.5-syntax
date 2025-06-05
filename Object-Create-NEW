@@ -1,6 +1,22 @@
 Before ABAP 7.4 to create the object, we used the key word as "CREATE OBJECT"
 After 7.4 to create the object- Key word- "NEW"
 
+class lcl defintion.
+public section.
+data : gv_i type i.
+  methods : constructor importing p1 type i.
+            display.
+endclass.
+
+class lcl implementation.
+    method constructor.
+        gv_i = p1.
+    endmethod.
+    method display.
+        write :/ gv_i.
+    endmethod.
+endclass.
+
 Ex:
     NEW lcl( )->display( ). --> here object created along with display() method also called.
     DATA(lo_ref) = NEW lcl( ). --> object created, later called the display method using the object
@@ -16,6 +32,6 @@ or
 
 Pass the values to the object using new syntax.
     DATA lo_ref TYPE REF TO lcl.
-    lo_ref = new #( val1 = 'X' ).
+    lo_ref = new #( p1 = 1 ).
     lo_Ref->display( ).
 
