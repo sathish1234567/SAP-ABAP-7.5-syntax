@@ -1,0 +1,98 @@
+Read- to read the data on specific condition and 
+      to read the data on index.
+
+Find the index using read statement.- line_index( )
+Get Index Number of Particular Entry from Internal Table.
+_________________________________________________________
+
+Old Syntax.
+READ TABLE itab TRANSPORTING NO FIELDS fld1 = var1.
+IF sy-subrc eq 0
+lv_tabix = sy-tabix.
+ENDIF. 
+
+New Syntax.
+lv_tabix = line_index( itab[ fld1 = var1 ] ). 
+
+Check particular Value is in Internal Table.
+____________________________________________
+Old Syntax.
+READ TABLE itab TRANSPORTING NO FIELDS WITH KEY fld1 = var1.
+IF sy-subrc = 0.ENDIF. 
+
+New Syntax.
+IF line_exists( itab[ fld1 = var1 ] ).ENDIF.  
+
+Get a particular field from one table to another variable.
+___________________________________________________________
+
+Old Syntax.
+READ TABLE itab INTO wa WITH KEY fld1 = var1.
+IF sy-subrc EQ 0.
+lv_var2 = wa-var2.
+ENDIF. 
+
+New Syntax.
+lv_var2 = itab[ fld1 = var1 ]-var2. 
+
+Read table with Index 1.
+_______________________________
+Ex-1
+Old Syntax.
+READ TABLE itab INTO DATA(wa) index 1. 
+
+New Syntax.
+DATA(wa) = itab[ 1 ]. 
+
+Ex-2:
+DATA:
+  lt_t001 TYPE STANDARD TABLE OF t001,
+  ls_t001 TYPE t001.
+
+" old function
+READ TABLE lt_t001 INTO ls_t001 INDEX 1.
+
+" new function
+ls_t001 = lt_t001[ 1 ].
+
+" with inline declaration
+DATA(ls_t001) = lt_t001[ 1 ].
+
+
+Get line from table to Work Area.
+____________________________________
+
+Old Syntax.
+READ TABLE itab INTO DATA(wa) WITH KEY fld1 = var1. 
+
+New Syntax.
+DATA(wa) = itab[ fld1 = var1 ]. 
+
+Ex:
+" alter Read
+READ TABLE lt_t001 INTO ls_t001
+ WITH KEY bukrs = 'ABCD'.
+
+" neuer Read
+ls_t001 = lt_t001[ bukrs = 'ABCD' ].
+
+Modify Entry in Table.
+___________________________
+
+Old Syntax.
+READ TABLE itab ASSIGNING <lfs_tab> fld1 = var1.
+IF sy-subrc eq 0
+<lfs_tab>-fld2 = 'Text'.
+ENDIF. 
+
+New Syntax.
+itab[ fld1 = var1 ]-fld2 = 'Text'. 
+
+Note: While Using these Syntaxes in case of Table Expression use with Try <> Catch with cx_sy_itab_line_not_found EndTry block.
+
+line_Exists:
+_________________________
+" Examine the line
+IF LINE_EXISTS( lt_t001[ 1 ] ).
+  DATA(ls_t001) = lt_t001[ 1 ].
+ENDIF.
