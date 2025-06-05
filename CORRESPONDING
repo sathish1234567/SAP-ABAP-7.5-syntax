@@ -202,6 +202,8 @@ ENDLOOP.
 * Corresposnding with except.
 *REFRESH lt_mara1 .
 lt_mara1 = CORRESPONDING ltt_mara1( lt_mara1 mapping matnr = mtart  except mtart ).
+or
+data(lt_mara1) = CORRESPONDING ltt_mara1( lt_mara1 mapping matnr = mtart  except mtart ).
 
 *cl_demo_output=>begin_section( 'START' ).
 cl_demo_output=>display( lt_mara ).
