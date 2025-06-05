@@ -12,3 +12,10 @@ or
 
     DATA lo_ref TYPE REF TO lcl.
     lo_ref = new #( ).
+
+
+Pass the values to the object using new syntax.
+    DATA lo_ref TYPE REF TO lcl.
+    lo_ref = new #( val1 = 'X' ).
+    lo_Ref->display( ).
+
