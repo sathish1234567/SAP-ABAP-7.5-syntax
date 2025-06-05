@@ -169,3 +169,41 @@ types: begin of ty_data1,
   1     2     3     1     2     0   0
   10    20    30    10    20    0   0
  
+*********************************************
+Example:
+TYPES : BEGIN OF lty_mara,
+          matnr TYPE mara-matnr,
+          ernam TYPE mara-ernam,
+          mtart TYPE mara-mtart,
+        END OF lty_mara.
+TYPES : BEGIN OF lty_mara1,
+          matnr TYPE mara-matnr,
+          mtart TYPE mara-mtart,
+        END OF lty_mara1,
+        ltt_mara1 TYPE TABLE OF lty_mara1.
+DATA lt_mara TYPE TABLE OF lty_mara.
+DATA lt_mara1 TYPE TABLE OF lty_mara1.
+
+SELECT matnr,
+       ernam,
+       mtart
+       FROM mara INTO TABLE @lt_mara
+       UP TO 10 ROWS.
+*old syntax: one-iternal table to another internal table
+LOOP AT lt_mara INTO DATA(ls_mara).
+  DATA(ls_mara1) = VALUE lty_mara1( matnr = ls_mara-matnr mtart = ls_mara-mtart ) .
+  APPEND ls_mara1 TO lt_mara1.
+  CLEAR ls_mara1 .
+ENDLOOP.
+
+" New syntax- on internal table to another.
+*Using -Corresponding
+* Corresponding with mapping
+* Corresposnding with except.
+*REFRESH lt_mara1 .
+lt_mara1 = CORRESPONDING ltt_mara1( lt_mara1 mapping matnr = mtart  except mtart ).
+
+*cl_demo_output=>begin_section( 'START' ).
+cl_demo_output=>display( lt_mara ).
+cl_demo_output=>display( lt_mara1 ).
+Output:
