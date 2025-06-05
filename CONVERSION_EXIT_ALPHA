@@ -1,0 +1,29 @@
+ALPHA - Keyword
+Used to convert to the leading zeros- ALPHA with IN
+convert leading zeros to remove the preceding zeros. ALPHA with OUT
+
+Previously used before 7.5- 
+FMs used:
+CONVERT_EXIT_ALPHA_INPUT - IN
+CONVERT_EXIT_ALPHA_OUTPUT - OUT
+
+IN- add zeros
+OUT- preceding zeros will remove.
+
+DATA lv_vbeln TYPE vbak-vbeln VALUE '100'.
+PARAMETERS : convert AS CHECKBOX.
+PARAMETERS : p_in  RADIOBUTTON GROUP rad USER-COMMAND rad,
+             p_out RADIOBUTTON GROUP rad.
+
+START-OF-SELECTION.
+  IF NOT convert IS INITIAL.
+    IF p_in EQ abap_true.
+      lv_vbeln = '1000'.
+      WRITE : |{ lv_vbeln ALPHA = IN }|.
+    ELSEIF p_out EQ abap_true.
+      lv_vbeln = '0000001000'.
+      WRITE : |{ lv_vbeln ALPHA = OUT }|.
+    ENDIF.
+  ENDIF.
+
+
