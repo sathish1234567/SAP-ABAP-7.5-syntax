@@ -1,0 +1,32 @@
+In ABAP, COMMIT WORK and COMMIT WORK AND WAIT both finalize a logical unit of work (LUW) and update the database, but they differ in how they handle the completion of this process. COMMIT WORK is asynchronous, meaning it initiates the database update and then immediately continues with the next statement in the program without waiting for confirmation. COMMIT WORK AND WAIT is synchronous; it initiates the database update and then pauses the program execution until the update is completed and confirmed, before continuing with the next statement. 
+Here's a more detailed explanation:
+COMMIT WORK:
+Asynchronous:
+The ABAP program continues its execution immediately after COMMIT WORK is issued, without waiting for the database update to complete. 
+Updates are triggered:
+The COMMIT WORK statement triggers the update process in the background, and the program proceeds to the next statement. 
+Potential for issues:
+If an error occurs during the background update, the program might not be aware of it immediately and could potentially proceed with inconsistent data. 
+COMMIT WORK AND WAIT:
+Synchronous:
+The ABAP program pauses its execution after COMMIT WORK AND WAIT is issued, waiting for the database update to finish and a confirmation to be received before proceeding. 
+Confirmation of update:
+The AND WAIT addition ensures that the program only continues once the database update has been successfully completed or if an error occurred. 
+Error handling:
+This provides better error handling, as the program can react to update failures immediately. 
+In essence:
+COMMIT WORK is faster because it doesn't wait, but it might lead to inconsistencies if updates fail. COMMIT WORK AND WAIT is slower but ensures data consistency by waiting for confirmation of the update. 
+Example:
+Code
+
+  "Some database operations
+  UPDATE ztable SET field = 'value' WHERE condition.
+  COMMIT WORK. " Asynchronous update, program continues
+  "Next statement
+  WRITE: / 'Update triggered'.
+
+  "Some database operations
+  UPDATE ztable SET field = 'another value' WHERE condition.
+  COMMIT WORK AND WAIT.  " Synchronous update, program waits
+  "Next statement
+  WRITE: / 'Update completed'.
