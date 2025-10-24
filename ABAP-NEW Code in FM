@@ -1,0 +1,150 @@
+ABAP-NEW CODE IN FM-
+
+*"FUNCTION z*****_invoice_****.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IR_INV_DATE) TYPE  HRPP_SEL_BLDAT OPTIONAL
+*"  EXPORTING
+*"     VALUE(ET_RETURN) TYPE  BAPIRET2_T
+*"     VALUE(ET_INVOIC) TYPE  ZTT_CPISAP_INVOICE
+*"----------------------------------------------------------------------
+
+  IF ir_inv_date[] IS INITIAL.
+    ir_inv_date = VALUE hrpp_sel_bldat( ( sign = 'I' option = 'BT' low = '20251001' high = '20251019' ) ).
+  ENDIF.
+  SELECT * FROM /digigst/ewb_inv
+           INTO TABLE @DATA(lt_ewb_inv)
+           WHERE companycode = '1200' AND
+                 documenttype = 'INV' AND
+                 documentdate IN @ir_inv_date[].
+  IF sy-subrc NE 0.
+    et_return = VALUE bapiret2_t( ( type = 'E' message = 'No data found' ) ).
+    RETURN.
+  ENDIF.
+
+  IF line_exists( lt_ewb_inv[ 1 ] ) .
+    SELECT vbeln,
+           kunrg
+           INTO TABLE @DATA(lt_vbrk)
+           FROM vbrk
+           FOR ALL ENTRIES IN @lt_ewb_inv
+           WHERE vbeln = @lt_ewb_inv-documentnumber+6(10).
+  ELSE.
+    et_return = VALUE bapiret2_t( ( type = 'E' message = 'No data found' ) ).
+    RETURN.
+  ENDIF.
+
+  IF line_exists( lt_vbrk[ 1 ] ).
+    SORT lt_vbrk BY vbeln kunrg.
+
+    SELECT vbeln,
+           matnr,
+           werks,
+           fkimg,
+           meins,
+           netwr
+           INTO TABLE @DATA(lt_vbrp)
+           FROM vbrp
+           FOR ALL ENTRIES IN @lt_vbrk
+           WHERE vbeln = @lt_vbrk-vbeln.
+    IF sy-subrc EQ 0.
+      SELECT matnr,
+             werks,
+             steuc
+             INTO TABLE @DATA(lt_marc)
+             FROM marc
+             FOR ALL ENTRIES IN @lt_vbrp
+             WHERE matnr = @lt_vbrp-matnr AND
+                   werks = @lt_vbrp-werks.
+    ENDIF.
+
+
+    SELECT kunnr,
+           name1,
+           adrnr,
+           stras
+           INTO TABLE @DATA(lt_kna1)
+           FROM kna1
+           FOR ALL ENTRIES IN @lt_vbrk
+           WHERE kunnr = @lt_vbrk-kunrg.
+    IF sy-subrc EQ 0.
+      SELECT addrnumber,
+             name1,
+             city1,
+             city2,
+             region
+             FROM adrc
+             INTO TABLE @DATA(lt_adrc)
+             FOR ALL ENTRIES IN @lt_kna1
+             WHERE addrnumber = @lt_kna1-adrnr.
+    ENDIF.
+  ENDIF.
+
+
+  LOOP AT lt_ewb_inv INTO DATA(ls_ewb_inv).
+    DATA(ls_cpisap_invoice) =
+    VALUE zst_cpisap_invoice( invoice_type = 'GST' invoice_number = ls_ewb_inv-documentnumber invoice_date = ls_ewb_inv-documentdate
+    type_of_invoice = ls_ewb_inv-transactiontype
+    billto_gstin = ls_ewb_inv-suppliergstin
+    payee_gstin = ls_ewb_inv-suppliergstin
+    buyer_gstin = ls_ewb_inv-suppliergstin
+    transport_stage = ls_ewb_inv-location
+    transport_mode = ls_ewb_inv-transportmode
+    transport_name = ls_ewb_inv-transportername
+    destination = ls_ewb_inv-customerlegalname
+    vechile_ident_no = ls_ewb_inv-vehicleno
+    lr_no = ls_ewb_inv-transporterid
+
+    ).
+    IF line_exists( lt_vbrk[ vbeln = ls_ewb_inv-documentnumber ] ).
+      DATA(ls_vbrk) = VALUE #( lt_vbrk[ vbeln = ls_ewb_inv-documentnumber ] ).
+      ls_cpisap_invoice-payee_ident = ls_vbrk-kunrg.
+      ls_cpisap_invoice-bill_to_ident = ls_vbrk-kunrg.
+      IF NOT ls_vbrk-kunrg IS INITIAL AND line_exists( lt_kna1[ kunnr = ls_vbrk-kunrg ] ).
+        DATA(ls_kna1) = VALUE #( lt_kna1[ kunnr = ls_vbrk-kunrg ] ).
+        ls_cpisap_invoice-payee_name = ls_kna1-name1.
+        ls_cpisap_invoice-buyer_name = ls_kna1-name1.
+        ls_cpisap_invoice-buyer_adr1 = ls_kna1-stras.
+        ls_cpisap_invoice-payee_adr1 = ls_kna1-stras.
+      ENDIF.
+
+      DATA(lv_index) = line_index( lt_vbrp[ vbeln = ls_ewb_inv-documentnumber+6(10) ] ).
+      DATA(ls_vbrp_p) = VALUE #( lt_vbrp[ vbeln = ls_ewb_inv-documentnumber+6(10) ] ).
+      LOOP AT lt_vbrp INTO DATA(ls_vbrp_c) FROM lv_index.
+        IF ls_vbrp_c-vbeln NE ls_vbrp_p-vbeln .
+          EXIT.
+        ENDIF.
+        IF line_exists( lt_marc[ matnr = ls_vbrp_c-matnr werks = ls_vbrp_c-werks ] ).
+          DATA(ls_marc) = VALUE #( lt_marc[ matnr = ls_vbrp_c-matnr werks = ls_vbrp_c-werks ] ).
+          DATA(ls_item) = VALUE zst_cpisap_invitem(
+                          hsn_code = ls_marc-steuc
+                          invoice_qty = ls_vbrp_c-fkimg
+                          uom = ls_vbrp_c-meins
+                          basic_sales_price = ls_vbrp_c-netwr
+                          currency = 'INR'
+                          total_amount_payable = ls_ewb_inv-invoicevalue
+                          total_invoice_amount = ls_ewb_inv-invoicevalue
+                          total_prod_line_item_amount = ls_ewb_inv-invoiceassessableamount
+                          total_amount_taxes = ls_ewb_inv-totaltax
+                          ).
+
+          ls_cpisap_invoice-details = VALUE #( BASE ls_cpisap_invoice-details ( ls_item ) ).
+        ENDIF.
+        CLEAR : ls_marc,
+        ls_item.
+      ENDLOOP.
+      et_invoic = VALUE #( BASE et_invoic ( ls_cpisap_invoice ) ).
+    ENDIF.
+
+
+    REFRESH ls_cpisap_invoice-details.
+    CLEAR : ls_cpisap_invoice,
+            ls_vbrp_p,
+            ls_vbrp_c,
+            ls_marc,
+            ls_item,
+            lv_index.
+  ENDLOOP.
+
+ENDFUNCTION.
